@@ -41,6 +41,7 @@ let salaryPayments = [];
 let prevMonthDailyExpenses = [];
 let savingsTransactions = []; // all-time, for the running balance
 let categoryBudgets = [];
+let budgetsUnavailable = false;
 
 // How many months the trend chart covers, including the current one.
 const TREND_MONTHS = 6;
@@ -188,18 +189,24 @@ async function loadMonth() {
       sb.from("category_budgets").select("*").eq("user_id", currentUser.id),
     ]);
 
-    // If any query failed, bail out rather than rendering a partial month —
-    // a silently wrong total is worse than a visible error.
-    const failed = results.find((r) => r.error);
-    if (failed) throw failed.error;
-
     const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes] = results;
+
+    // If anything that feeds a total failed, bail out rather than rendering a
+    // partial month — a silently wrong total is worse than a visible error.
+    const failed = [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes].find((r) => r.error);
+    if (failed) throw failed.error;
 
     allMonthlyRows = monthlyRes.data || [];
     allFixedRows = fixedRes.data || [];
     allDailyExpenses = dailyRes.data || [];
     allSalaryPayments = salaryRes.data || [];
     savingsTransactions = savingsRes.data || [];
+
+    // Budgets are only caps, never money in a total, so a missing table (the
+    // migration hasn't been run yet) degrades to "no budgets" instead of
+    // taking the whole dashboard down with it.
+    budgetsUnavailable = !!budgetRes.error;
+    if (budgetRes.error) console.error(budgetRes.error);
     categoryBudgets = budgetRes.data || [];
 
     const curStart = toDateStr(currentMonth);
@@ -833,6 +840,13 @@ function renderBudgets() {
   const ul = document.getElementById("budget-list");
   const spent = spentByCategoryThisMonth();
   ul.innerHTML = "";
+
+  if (budgetsUnavailable) {
+    document.getElementById("suggest-budgets-btn").hidden = true;
+    ul.innerHTML = '<li class="empty-state">Budgets need one more setup step — run migration_category_budgets.sql in Supabase.</li>';
+    return;
+  }
+  document.getElementById("suggest-budgets-btn").hidden = false;
 
   for (const cat of CATEGORIES) {
     const budget = budgetFor(cat);
