@@ -4,6 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Expense Tracker</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#fdf6f0" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#201a16" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Expenses" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -73,7 +80,7 @@
 
           <form id="salary-form" class="daily-form">
             <input type="date" id="salary-date" required />
-            <input type="number" id="salary-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="number" inputmode="decimal" id="salary-amount" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="salary-note" placeholder="Note (optional)" />
             <button type="submit" class="btn btn-primary">Add Payment</button>
           </form>
@@ -84,7 +91,7 @@
 
           <label class="field">
             Family Maintenance
-            <input type="number" id="input-family" step="0.01" min="0" placeholder="0.00" />
+            <input type="number" inputmode="decimal" id="input-family" step="0.01" min="0" placeholder="0.00" />
           </label>
 
           <h3 class="subheading">Fixed Expenses</h3>
@@ -92,7 +99,7 @@
 
           <form id="fixed-form" class="inline-form">
             <input type="text" id="fixed-name" placeholder="Name (e.g. Rent)" required />
-            <input type="number" id="fixed-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="number" inputmode="decimal" id="fixed-amount" placeholder="Amount" step="0.01" min="0" required />
             <button type="submit" class="btn btn-primary">Add</button>
           </form>
         </section>
@@ -112,7 +119,7 @@
               <option>Entertainment</option>
               <option>Other</option>
             </select>
-            <input type="number" id="daily-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="number" inputmode="decimal" id="daily-amount" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="daily-note" placeholder="Note (optional)" />
             <button type="submit" class="btn btn-primary">Add Expense</button>
           </form>
@@ -137,7 +144,7 @@
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
             </select>
-            <input type="number" id="savings-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="number" inputmode="decimal" id="savings-amount" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="savings-note" placeholder="Note (optional)" />
             <button type="submit" class="btn btn-primary">Add</button>
           </form>
@@ -151,5 +158,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
   <script src="dashboard.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>

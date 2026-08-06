@@ -436,14 +436,53 @@ input, select { font-family: inherit; }
 
 .item-amount { font-weight: 700; white-space: nowrap; }
 
-.delete-btn {
+.item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.delete-btn, .edit-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-size: 16px;
-  padding: 2px 6px;
+  /* Large enough to be a comfortable tap target on a phone. */
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 8px;
 }
 .delete-btn:hover { color: var(--red); }
+.edit-btn:hover { color: var(--primary); }
+
+/* ---------- Inline edit form ---------- */
+.item-list li.editing {
+  display: block;
+  padding: 12px 0;
+}
+
+.edit-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.edit-form input, .edit-form select {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.edit-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+.edit-actions .btn { flex: 1; }
 
 .empty-state {
   color: var(--text-muted);

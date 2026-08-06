@@ -194,9 +194,13 @@ function renderFixedList() {
     li.innerHTML = `
       <div class="item-main"><span class="item-title">${escapeHtml(f.name)}</span></div>
       <span class="item-amount">${fmt(f.amount)}</span>
-      <button class="delete-btn" aria-label="Delete">✕</button>
+      ${rowActions()}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteFixedExpense(f.id));
+    attachEdit(li, f, [
+      { key: "name", type: "text", required: true },
+      { key: "amount", type: "number", required: true },
+    ], "fixed_expenses", renderFixedList);
     ul.appendChild(li);
   }
 }
@@ -236,6 +240,99 @@ document.getElementById("copy-prev-btn").addEventListener("click", async () => {
   renderSummary();
   toast("Copied from previous month");
 });
+
+// ---------- Inline editing ----------
+// Shared by every list. Swaps a row into a small form in place; on save it
+// patches the row and reloads the month, which keeps lists and totals correct
+// even when an edit moves an entry into a different month.
+function rowActions() {
+  return `
+    <span class="item-actions">
+      <button class="edit-btn" aria-label="Edit" title="Edit">✎</button>
+      <button class="delete-btn" aria-label="Delete" title="Delete">✕</button>
+    </span>
+  `;
+}
+
+function attachEdit(li, item, spec, table, rerender) {
+  const editBtn = li.querySelector(".edit-btn");
+  if (!editBtn) return;
+
+  editBtn.addEventListener("click", () => {
+    const form = document.createElement("form");
+    form.className = "edit-form";
+
+    for (const field of spec) {
+      let input;
+      if (field.type === "select") {
+        input = document.createElement("select");
+        for (const opt of field.options) {
+          const option = document.createElement("option");
+          option.value = typeof opt === "string" ? opt : opt.value;
+          option.textContent = typeof opt === "string" ? opt : opt.label;
+          input.appendChild(option);
+        }
+      } else {
+        input = document.createElement("input");
+        input.type = field.type;
+        if (field.type === "number") {
+          input.step = "0.01";
+          input.min = "0";
+          input.inputMode = "decimal";
+        }
+        if (field.placeholder) input.placeholder = field.placeholder;
+        if (field.required) input.required = true;
+      }
+      input.dataset.key = field.key;
+      input.value = item[field.key] == null ? "" : item[field.key];
+      form.appendChild(input);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "edit-actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "submit";
+    saveBtn.className = "btn btn-primary";
+    saveBtn.textContent = "Save";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn btn-ghost";
+    cancelBtn.textContent = "Cancel";
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    form.appendChild(actions);
+
+    li.innerHTML = "";
+    li.classList.add("editing");
+    li.appendChild(form);
+    form.querySelector("[data-key]").focus();
+
+    cancelBtn.addEventListener("click", rerender);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true;
+
+      const patch = {};
+      for (const el of form.querySelectorAll("[data-key]")) {
+        const field = spec.find((f) => f.key === el.dataset.key);
+        let value = field.type === "number" ? parseFloat(el.value) || 0 : el.value.trim();
+        if (field.nullable && value === "") value = null;
+        patch[field.key] = value;
+      }
+
+      const { error } = await sb.from(table).update(patch).eq("id", item.id);
+      if (error) {
+        console.error(error);
+        toast("Failed to save");
+        saveBtn.disabled = false;
+        return;
+      }
+      toast("Saved");
+      loadMonth();
+    });
+  });
+}
 
 // ---------- Salary payments ----------
 document.getElementById("salary-form").addEventListener("submit", async (e) => {
@@ -288,9 +385,14 @@ function renderSalaryList() {
         ${p.note ? `<span class="item-sub">${escapeHtml(p.note)}</span>` : ""}
       </div>
       <span class="item-amount">${fmt(p.amount)}</span>
-      <button class="delete-btn" aria-label="Delete">✕</button>
+      ${rowActions()}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteSalaryPayment(p.id));
+    attachEdit(li, p, [
+      { key: "date", type: "date", required: true },
+      { key: "amount", type: "number", required: true },
+      { key: "note", type: "text", placeholder: "Note (optional)", nullable: true },
+    ], "salary_payments", renderSalaryList);
     ul.appendChild(li);
   }
 }
@@ -362,9 +464,15 @@ function renderSavingsList() {
         ${t.note ? `<span class="item-sub">${escapeHtml(t.note)}</span>` : ""}
       </div>
       <span class="item-amount">${t.type === "withdrawal" ? "-" : ""}${fmt(t.amount)}</span>
-      <button class="delete-btn" aria-label="Delete">✕</button>
+      ${rowActions()}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteSavingsTransaction(t.id));
+    attachEdit(li, t, [
+      { key: "date", type: "date", required: true },
+      { key: "type", type: "select", options: [{ value: "deposit", label: "Deposit" }, { value: "withdrawal", label: "Withdrawal" }] },
+      { key: "amount", type: "number", required: true },
+      { key: "note", type: "text", placeholder: "Note (optional)", nullable: true },
+    ], "savings_transactions", renderSavingsList);
     ul.appendChild(li);
   }
 }
@@ -423,9 +531,15 @@ function renderDailyList() {
         <span class="item-sub">${dateLabel}${d.note ? " · " + escapeHtml(d.note) : ""}</span>
       </div>
       <span class="item-amount">${fmt(d.amount)}</span>
-      <button class="delete-btn" aria-label="Delete">✕</button>
+      ${rowActions()}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteDailyExpense(d.id));
+    attachEdit(li, d, [
+      { key: "date", type: "date", required: true },
+      { key: "category", type: "select", options: CATEGORIES },
+      { key: "amount", type: "number", required: true },
+      { key: "note", type: "text", placeholder: "Note (optional)", nullable: true },
+    ], "daily_expenses", renderDailyList);
     ul.appendChild(li);
   }
 }
