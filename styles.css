@@ -40,10 +40,13 @@ input, select { font-family: inherit; }
 /* ---------- Auth screen ---------- */
 .auth-screen {
   min-height: 100vh;
-  display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+}
+
+.auth-screen:not([hidden]) {
+  display: flex;
 }
 
 .auth-card {
@@ -229,8 +232,11 @@ input, select { font-family: inherit; }
 .positive { color: var(--green) !important; }
 
 /* ---------- Copy prompt ---------- */
-.copy-prompt {
+.copy-prompt:not([hidden]) {
   display: flex;
+}
+
+.copy-prompt {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
