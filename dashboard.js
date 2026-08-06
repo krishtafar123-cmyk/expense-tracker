@@ -14,6 +14,23 @@ function toast(msg) {
   toast._t = setTimeout(() => { el.hidden = true; }, 2500);
 }
 
+// Wires up a form submit with the button disabled for the duration, so a
+// double-tap on a slow connection can't insert the same row twice.
+function onSubmitLocked(formId, handler) {
+  const form = document.getElementById(formId);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await handler();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 // ---------- State ----------
 let currentUser = null;
 let currentMonth = firstOfMonth(new Date());
@@ -73,6 +90,30 @@ document.getElementById("month-next").addEventListener("click", () => {
   loadMonth();
 });
 
+// ---------- Loading / error state ----------
+let hasLoadedOnce = false;
+
+function setLoading(on) {
+  document.getElementById("loading-bar").hidden = !on;
+}
+
+function showLoadError(message) {
+  document.getElementById("load-error-text").textContent = message;
+  document.getElementById("load-error").hidden = false;
+}
+
+function hideLoadError() {
+  document.getElementById("load-error").hidden = true;
+}
+
+// Blanks the totals so a failed first load never looks like a real $0 balance.
+function blankSummary() {
+  const ids = ["sum-salary", "sum-fixed", "sum-family", "sum-daily", "sum-savings", "sum-remaining", "sum-today"];
+  for (const id of ids) document.getElementById(id).textContent = "—";
+}
+
+document.getElementById("load-retry").addEventListener("click", loadMonth);
+
 // ---------- Data loading ----------
 async function loadMonth() {
   document.getElementById("month-label").textContent = monthLabel(currentMonth);
@@ -80,44 +121,56 @@ async function loadMonth() {
 
   const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
 
-  const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes, savingsRes] = await Promise.all([
-    sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", key).maybeSingle(),
-    sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", key).order("created_at"),
-    sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
-      .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
-      .order("date", { ascending: false }),
-    sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
-      .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
-      .order("date", { ascending: false }),
-    sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
-      .gte("date", toDateStr(prevMonth)).lt("date", toDateStr(monthEndExclusive(prevMonth))),
-    sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
-  ]);
+  setLoading(true);
+  hideLoadError();
 
-  if (monthlyRes.error) console.error(monthlyRes.error);
-  if (fixedRes.error) console.error(fixedRes.error);
-  if (dailyRes.error) console.error(dailyRes.error);
-  if (salaryRes.error) console.error(salaryRes.error);
-  if (prevDailyRes.error) console.error(prevDailyRes.error);
-  if (savingsRes.error) console.error(savingsRes.error);
+  try {
+    const results = await Promise.all([
+      sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", key).maybeSingle(),
+      sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", key).order("created_at"),
+      sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
+        .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
+        .order("date", { ascending: false }),
+      sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
+        .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
+        .order("date", { ascending: false }),
+      sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
+        .gte("date", toDateStr(prevMonth)).lt("date", toDateStr(monthEndExclusive(prevMonth))),
+      sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
+    ]);
 
-  monthlyRow = monthlyRes.data || null;
-  fixedExpenses = fixedRes.data || [];
-  dailyExpenses = dailyRes.data || [];
-  salaryPayments = salaryRes.data || [];
-  prevMonthDailyExpenses = prevDailyRes.data || [];
-  savingsTransactions = savingsRes.data || [];
+    // If any query failed, bail out rather than rendering a partial month —
+    // a silently wrong total is worse than a visible error.
+    const failed = results.find((r) => r.error);
+    if (failed) throw failed.error;
 
-  document.getElementById("input-family").value = monthlyRow ? monthlyRow.family_maintenance : "";
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes, savingsRes] = results;
 
-  document.getElementById("copy-prompt").hidden = !!monthlyRow;
+    monthlyRow = monthlyRes.data || null;
+    fixedExpenses = fixedRes.data || [];
+    dailyExpenses = dailyRes.data || [];
+    salaryPayments = salaryRes.data || [];
+    prevMonthDailyExpenses = prevDailyRes.data || [];
+    savingsTransactions = savingsRes.data || [];
+    hasLoadedOnce = true;
 
-  renderSalaryList();
-  renderSavingsList();
-  renderFixedList();
-  renderDailyList();
-  renderCategoryBreakdown();
-  renderSummary();
+    document.getElementById("input-family").value = monthlyRow ? monthlyRow.family_maintenance : "";
+
+    document.getElementById("copy-prompt").hidden = !!monthlyRow;
+
+    renderSalaryList();
+    renderSavingsList();
+    renderFixedList();
+    renderDailyList();
+    renderCategoryBreakdown();
+    renderSummary();
+  } catch (err) {
+    console.error(err);
+    showLoadError("Couldn't load your data — check your connection and try again.");
+    if (!hasLoadedOnce) blankSummary();
+  } finally {
+    setLoading(false);
+  }
 }
 
 // ---------- Monthly setup: family maintenance ----------
@@ -152,8 +205,7 @@ document.getElementById("input-family").addEventListener("input", (e) => {
 });
 
 // ---------- Fixed expenses ----------
-document.getElementById("fixed-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+onSubmitLocked("fixed-form", async () => {
   const nameInput = document.getElementById("fixed-name");
   const amountInput = document.getElementById("fixed-amount");
   const name = nameInput.value.trim();
@@ -335,8 +387,7 @@ function attachEdit(li, item, spec, table, rerender) {
 }
 
 // ---------- Salary payments ----------
-document.getElementById("salary-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+onSubmitLocked("salary-form", async () => {
   const date = document.getElementById("salary-date").value;
   const amountInput = document.getElementById("salary-amount");
   const noteInput = document.getElementById("salary-note");
@@ -410,8 +461,7 @@ function savingsThisMonth() {
   return savingsTransactions.filter((t) => t.date >= start && t.date < end);
 }
 
-document.getElementById("savings-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+onSubmitLocked("savings-form", async () => {
   const date = document.getElementById("savings-date").value;
   const type = document.getElementById("savings-type").value;
   const amountInput = document.getElementById("savings-amount");
@@ -516,8 +566,7 @@ document.getElementById("daily-date-change").addEventListener("click", () => {
 document.getElementById("daily-date").addEventListener("change", setDailyDateLabel);
 
 // ---------- Daily expenses ----------
-document.getElementById("daily-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+onSubmitLocked("daily-form", async () => {
   const date = document.getElementById("daily-date").value;
   const category = document.getElementById("daily-category").value;
   const amountInput = document.getElementById("daily-amount");
@@ -792,6 +841,59 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// ---------- CSV export ----------
+// Exports everything, not just the visible month — the point is a backup you
+// can keep outside Supabase.
+function csvCell(value) {
+  const s = value == null ? "" : String(value);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+document.getElementById("export-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("export-btn");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const results = await Promise.all([
+      sb.from("salary_payments").select("*").eq("user_id", currentUser.id).order("date"),
+      sb.from("monthly_data").select("*").eq("user_id", currentUser.id).order("month"),
+      sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).order("month"),
+      sb.from("daily_expenses").select("*").eq("user_id", currentUser.id).order("date"),
+      sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date"),
+    ]);
+    const failed = results.find((r) => r.error);
+    if (failed) throw failed.error;
+
+    const [salary, monthly, fixed, daily, savings] = results;
+    const rows = [["Type", "Date", "Detail", "Amount", "Note"]];
+    for (const r of salary.data) rows.push(["Salary", r.date, "", r.amount, r.note]);
+    for (const r of monthly.data) rows.push(["Family maintenance", r.month, "", r.family_maintenance, ""]);
+    for (const r of fixed.data) rows.push(["Fixed expense", r.month, r.name, r.amount, ""]);
+    for (const r of daily.data) rows.push(["Daily expense", r.date, r.category, r.amount, r.note]);
+    for (const r of savings.data) {
+      rows.push(["Savings", r.date, r.type === "deposit" ? "Put in" : "Taken out", r.amount, r.note]);
+    }
+
+    const csv = rows.map((cells) => cells.map(csvCell).join(",")).join("\r\n");
+    // Leading BOM so Excel opens it as UTF-8 rather than mangling characters.
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "expense-tracker-" + toDateStr(new Date()) + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast("Exported " + (rows.length - 1) + " rows");
+  } catch (err) {
+    console.error(err);
+    toast("Export failed");
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // ---------- Init ----------
 (async function init() {

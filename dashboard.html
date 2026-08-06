@@ -25,11 +25,19 @@
       </div>
       <div class="topbar-user">
         <span id="user-email"></span>
+        <button id="export-btn" class="btn btn-ghost" title="Download all your data as a CSV">Export</button>
         <button id="logout-btn" class="btn btn-ghost">Log out</button>
       </div>
     </header>
 
     <main class="content">
+
+      <div id="loading-bar" class="loading-bar" hidden></div>
+
+      <div id="load-error" class="load-error" hidden>
+        <span id="load-error-text"></span>
+        <button type="button" id="load-retry" class="btn btn-secondary">Retry</button>
+      </div>
 
       <section class="summary-grid">
         <div class="summary-card" id="today-card" hidden>
