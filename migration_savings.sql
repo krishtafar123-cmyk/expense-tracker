@@ -15,5 +15,6 @@ create index if not exists idx_savings_transactions_date on savings_transactions
 
 alter table savings_transactions enable row level security;
 
+drop policy if exists "own savings_transactions" on savings_transactions;
 create policy "own savings_transactions" on savings_transactions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

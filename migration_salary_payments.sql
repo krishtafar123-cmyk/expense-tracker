@@ -14,6 +14,7 @@ create index if not exists idx_salary_payments_date on salary_payments(user_id, 
 
 alter table salary_payments enable row level security;
 
+drop policy if exists "own salary_payments" on salary_payments;
 create policy "own salary_payments" on salary_payments
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 

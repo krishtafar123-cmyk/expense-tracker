@@ -62,17 +62,22 @@ alter table daily_expenses enable row level security;
 alter table salary_payments enable row level security;
 alter table savings_transactions enable row level security;
 
+drop policy if exists "own monthly_data" on monthly_data;
 create policy "own monthly_data" on monthly_data
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own fixed_expenses" on fixed_expenses;
 create policy "own fixed_expenses" on fixed_expenses
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own daily_expenses" on daily_expenses;
 create policy "own daily_expenses" on daily_expenses
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own salary_payments" on salary_payments;
 create policy "own salary_payments" on salary_payments
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own savings_transactions" on savings_transactions;
 create policy "own savings_transactions" on savings_transactions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
