@@ -1,27 +1,29 @@
 :root {
-  --bg: #f5f6fa;
+  --bg: #fdf6f0;
   --card-bg: #ffffff;
-  --text: #1b1e28;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --green: #16a34a;
-  --red: #dc2626;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08);
-  --radius: 12px;
+  --text: #2b241f;
+  --text-muted: #8a7a6e;
+  --border: #f0e2d4;
+  --primary: #f0653a;
+  --primary-hover: #d8532a;
+  --accent: #f5a623;
+  --green: #3f9142;
+  --red: #d0453a;
+  --shadow: 0 4px 14px rgba(224,120,60,0.10);
+  --radius: 18px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14161f;
-    --card-bg: #1e2130;
-    --text: #e8e9ee;
-    --text-muted: #9096a8;
-    --border: #2d3143;
-    --primary: #4f8dff;
-    --primary-hover: #6ea0ff;
-    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    --bg: #201a16;
+    --card-bg: #2b2320;
+    --text: #f3ebe4;
+    --text-muted: #ab9a8d;
+    --border: #40342c;
+    --primary: #ff8360;
+    --primary-hover: #ff9d7d;
+    --accent: #ffb84d;
+    --shadow: 0 4px 14px rgba(0,0,0,0.35);
   }
 }
 
@@ -184,7 +186,7 @@ input, select { font-family: inherit; }
 /* ---------- Buttons ---------- */
 .btn {
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 600;
@@ -212,7 +214,7 @@ input, select { font-family: inherit; }
 .icon-btn {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   width: 32px;
   height: 32px;
   font-size: 18px;
@@ -277,7 +279,7 @@ input, select { font-family: inherit; }
 }
 
 .summary-card-highlight {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   color: #fff;
 }
 .summary-card-highlight .summary-label { color: rgba(255,255,255,0.85); }
@@ -377,7 +379,7 @@ input, select { font-family: inherit; }
 
 .savings-balance {
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 16px;
 }
@@ -401,7 +403,7 @@ input, select { font-family: inherit; }
   margin-top: 6px;
   padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -460,7 +462,7 @@ input, select { font-family: inherit; }
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -475,7 +477,7 @@ input, select { font-family: inherit; }
 .daily-form input, .daily-form select {
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -519,7 +521,7 @@ input, select { font-family: inherit; }
   background: var(--text);
   color: var(--bg);
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 13px;
   box-shadow: var(--shadow);
   z-index: 100;
