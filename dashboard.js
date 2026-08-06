@@ -21,6 +21,7 @@ let monthlyRow = null; // { id, family_maintenance } or null
 let fixedExpenses = [];
 let dailyExpenses = [];
 let salaryPayments = [];
+let prevMonthDailyExpenses = [];
 
 function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function monthKey(d) {
@@ -75,7 +76,9 @@ async function loadMonth() {
   document.getElementById("month-label").textContent = monthLabel(currentMonth);
   const key = monthKey(currentMonth);
 
-  const [monthlyRes, fixedRes, dailyRes, salaryRes] = await Promise.all([
+  const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+
+  const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes] = await Promise.all([
     sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", key).maybeSingle(),
     sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", key).order("created_at"),
     sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
@@ -84,17 +87,21 @@ async function loadMonth() {
     sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
       .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
       .order("date", { ascending: false }),
+    sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
+      .gte("date", toDateStr(prevMonth)).lt("date", toDateStr(monthEndExclusive(prevMonth))),
   ]);
 
   if (monthlyRes.error) console.error(monthlyRes.error);
   if (fixedRes.error) console.error(fixedRes.error);
   if (dailyRes.error) console.error(dailyRes.error);
   if (salaryRes.error) console.error(salaryRes.error);
+  if (prevDailyRes.error) console.error(prevDailyRes.error);
 
   monthlyRow = monthlyRes.data || null;
   fixedExpenses = fixedRes.data || [];
   dailyExpenses = dailyRes.data || [];
   salaryPayments = salaryRes.data || [];
+  prevMonthDailyExpenses = prevDailyRes.data || [];
 
   document.getElementById("input-family").value = monthlyRow ? monthlyRow.family_maintenance : "";
 
@@ -383,6 +390,135 @@ function renderSummary() {
   remainingEl.classList.toggle("negative", remaining < 0);
 
   renderTodaySummary();
+  renderInsights();
+}
+
+// ---------- Insights ----------
+function daysInMonth(d) {
+  return Math.round((monthEndExclusive(d) - firstOfMonth(d)) / 86400000);
+}
+
+function renderInsights() {
+  const insights = generateInsights();
+  const card = document.getElementById("insights-card");
+  const list = document.getElementById("insights-list");
+
+  if (insights.length === 0) {
+    card.hidden = true;
+    return;
+  }
+
+  list.innerHTML = "";
+  for (const insight of insights) {
+    const li = document.createElement("li");
+    li.className = "insight-item insight-" + insight.tone;
+    li.innerHTML = `<span class="insight-icon">${insight.icon}</span><span>${insight.text}</span>`;
+    list.appendChild(li);
+  }
+  card.hidden = false;
+}
+
+function generateInsights() {
+  const insights = [];
+
+  const salary = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
+  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
+  const remaining = salary - family - fixedTotal - dailyTotal;
+  const budgetForDaily = salary - family - fixedTotal;
+
+  const today = new Date();
+  const viewingCurrentMonth = today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
+  const totalDays = daysInMonth(currentMonth);
+  const daysElapsed = viewingCurrentMonth ? today.getDate() : (currentMonth < firstOfMonth(today) ? totalDays : 0);
+  const daysRemaining = totalDays - daysElapsed;
+
+  // 1. Already over budget — highest priority.
+  if (remaining < 0 && salary > 0) {
+    insights.push({
+      tone: "warning",
+      icon: "⚠️",
+      text: `You're ${fmt(Math.abs(remaining))} over budget for ${monthLabel(currentMonth)} already.`,
+    });
+  }
+
+  // 2. Spending pace vs budget for the rest of the month.
+  if (viewingCurrentMonth && daysElapsed > 0 && dailyTotal > 0 && budgetForDaily > 0) {
+    const avgPerDay = dailyTotal / daysElapsed;
+    const projectedTotal = avgPerDay * totalDays;
+    if (projectedTotal > budgetForDaily) {
+      insights.push({
+        tone: "warning",
+        icon: "📈",
+        text: `At your current pace (~${fmt(avgPerDay)}/day), you're on track to spend ${fmt(projectedTotal)} on daily expenses this month — about ${fmt(projectedTotal - budgetForDaily)} over budget.`,
+      });
+    } else if (daysRemaining > 0) {
+      const suggestedPerDay = (budgetForDaily - dailyTotal) / daysRemaining;
+      insights.push({
+        tone: "positive",
+        icon: "✅",
+        text: `You're on track — keep daily spending under ~${fmt(suggestedPerDay)}/day for the rest of the month to stay within budget.`,
+      });
+    }
+  }
+
+  // 3. Biggest category spike vs the same point last month.
+  const cutoffDay = viewingCurrentMonth ? daysElapsed : totalDays;
+  const currentByCategory = {};
+  for (const d of dailyExpenses) currentByCategory[d.category] = (currentByCategory[d.category] || 0) + Number(d.amount);
+
+  const prevByCategory = {};
+  for (const d of prevMonthDailyExpenses) {
+    const day = Number(d.date.slice(8, 10));
+    if (day <= cutoffDay) prevByCategory[d.category] = (prevByCategory[d.category] || 0) + Number(d.amount);
+  }
+
+  let biggestSpike = null;
+  for (const cat of Object.keys(currentByCategory)) {
+    const cur = currentByCategory[cat];
+    const prev = prevByCategory[cat] || 0;
+    if (prev < 20) continue; // avoid noise from tiny/one-off prior spend
+    const pctChange = ((cur - prev) / prev) * 100;
+    if (pctChange > 20 && (!biggestSpike || pctChange > biggestSpike.pctChange)) {
+      biggestSpike = { cat, cur, prev, pctChange };
+    }
+  }
+  if (biggestSpike) {
+    insights.push({
+      tone: "warning",
+      icon: "🔎",
+      text: `${biggestSpike.cat} spending is up ${Math.round(biggestSpike.pctChange)}% vs this point last month (${fmt(biggestSpike.cur)} vs ${fmt(biggestSpike.prev)}).`,
+    });
+  }
+
+  // 4. Biggest category this month, if it clearly dominates.
+  const catEntries = Object.entries(currentByCategory).sort((a, b) => b[1] - a[1]);
+  if (catEntries.length > 0 && dailyTotal > 0) {
+    const [topCat, topAmt] = catEntries[0];
+    const share = (topAmt / dailyTotal) * 100;
+    if (share >= 35) {
+      insights.push({
+        tone: "info",
+        icon: "🏷️",
+        text: `${topCat} is your biggest expense category this month at ${fmt(topAmt)} (${Math.round(share)}% of daily spending).`,
+      });
+    }
+  }
+
+  // 5. Fixed + family commitments vs salary.
+  if (salary > 0) {
+    const committedShare = ((family + fixedTotal) / salary) * 100;
+    if (committedShare >= 60) {
+      insights.push({
+        tone: "info",
+        icon: "🔒",
+        text: `Fixed expenses and family maintenance take up ${Math.round(committedShare)}% of your salary this month.`,
+      });
+    }
+  }
+
+  return insights.slice(0, 4);
 }
 
 // ---------- Today's spending (auto-resets at midnight since it's date-filtered) ----------
