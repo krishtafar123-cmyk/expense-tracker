@@ -62,6 +62,7 @@ If you set this up before these features existed, run these once each in Supabas
 
 - [migration_salary_payments.sql](migration_salary_payments.sql) — adds dated Salary Payments (for fortnightly/irregular pay), replacing the old single monthly salary figure.
 - [migration_savings.sql](migration_savings.sql) — adds the Savings tab (deposits/withdrawals with a running balance).
+- [migration_category_budgets.sql](migration_category_budgets.sql) — adds per-category monthly budgets.
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 
@@ -106,6 +107,10 @@ A service worker caches the app shell, so the app opens instantly and still load
   - **Withdrawal** = money taken *back out* of savings to spend. Balance goes down, **Remaining** goes up.
   - The big number on the card is the all-time balance (every deposit minus every withdrawal, carried across months). The list below it shows only the current month's activity.
   - If you withdraw more than you deposit in a month, that month's net savings is negative and correctly *increases* Remaining.
+- **Last 6 months**: a bar chart comparing income against total spending (daily + fixed + family maintenance) per month.
+- **Category Budgets**: an optional monthly cap per category, with a bar showing what you've spent against it this month. Budgets are not per-month — one cap applies every month until you change it.
+  - **Suggest from my history** fills them in from your own spending: for each category it takes the *lowest* month you actually achieved in the last 6 (ignoring months where you spent nothing in that category), so the target is one you've already proven is doable rather than an invented number. If those add up to more than what's left after salary − family − fixed, they're all scaled down proportionally to fit.
+  - This is arithmetic on your own numbers, not financial advice — treat the suggestions as a starting point and edit any of them.
 - **Insights**: a few rule-based observations computed from your own data (no external AI, nothing leaves Supabase) — over-budget warnings, a spending-pace projection with a suggested daily cap, category spikes vs. the same point last month, your dominant category, and how much of your salary is already committed to fixed costs.
 - **Remaining** = Salary − Family Maintenance − Fixed Expenses − Daily Expenses − Savings (this month's net deposits), for the selected month.
 

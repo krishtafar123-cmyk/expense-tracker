@@ -40,6 +40,17 @@ let dailyExpenses = [];
 let salaryPayments = [];
 let prevMonthDailyExpenses = [];
 let savingsTransactions = []; // all-time, for the running balance
+let categoryBudgets = [];
+
+// How many months the trend chart covers, including the current one.
+const TREND_MONTHS = 6;
+
+// Wide slices covering the whole trend window; the current and previous month
+// are derived from these rather than queried separately.
+let allDailyExpenses = [];
+let allSalaryPayments = [];
+let allFixedRows = [];
+let allMonthlyRows = [];
 
 function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function monthKey(d) {
@@ -156,19 +167,25 @@ async function loadMonth() {
   setLoading(true);
   hideLoadError();
 
+  const trendStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - (TREND_MONTHS - 1), 1);
+  const rangeStart = toDateStr(trendStart);
+  const rangeEnd = toDateStr(monthEndExclusive(currentMonth));
+
   try {
+    // One wide query per table covering the whole trend window. The current
+    // and previous month are sliced out of these client-side, which keeps the
+    // round trips down instead of querying each month separately.
     const results = await Promise.all([
-      sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", key).maybeSingle(),
-      sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", key).order("created_at"),
+      sb.from("monthly_data").select("*").eq("user_id", currentUser.id)
+        .gte("month", rangeStart).lte("month", key),
+      sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id)
+        .gte("month", rangeStart).lte("month", key).order("created_at"),
       sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
-        .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
-        .order("date", { ascending: false }),
+        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false }),
       sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
-        .gte("date", toDateStr(currentMonth)).lt("date", toDateStr(monthEndExclusive(currentMonth)))
-        .order("date", { ascending: false }),
-      sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
-        .gte("date", toDateStr(prevMonth)).lt("date", toDateStr(monthEndExclusive(prevMonth))),
+        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false }),
       sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
+      sb.from("category_budgets").select("*").eq("user_id", currentUser.id),
     ]);
 
     // If any query failed, bail out rather than rendering a partial month —
@@ -176,14 +193,23 @@ async function loadMonth() {
     const failed = results.find((r) => r.error);
     if (failed) throw failed.error;
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes, savingsRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes] = results;
 
-    monthlyRow = monthlyRes.data || null;
-    fixedExpenses = fixedRes.data || [];
-    dailyExpenses = dailyRes.data || [];
-    salaryPayments = salaryRes.data || [];
-    prevMonthDailyExpenses = prevDailyRes.data || [];
+    allMonthlyRows = monthlyRes.data || [];
+    allFixedRows = fixedRes.data || [];
+    allDailyExpenses = dailyRes.data || [];
+    allSalaryPayments = salaryRes.data || [];
     savingsTransactions = savingsRes.data || [];
+    categoryBudgets = budgetRes.data || [];
+
+    const curStart = toDateStr(currentMonth);
+    const prevStart = toDateStr(prevMonth);
+
+    monthlyRow = allMonthlyRows.find((r) => r.month === key) || null;
+    fixedExpenses = allFixedRows.filter((f) => f.month === key);
+    dailyExpenses = allDailyExpenses.filter((d) => d.date >= curStart && d.date < rangeEnd);
+    salaryPayments = allSalaryPayments.filter((p) => p.date >= curStart && p.date < rangeEnd);
+    prevMonthDailyExpenses = allDailyExpenses.filter((d) => d.date >= prevStart && d.date < curStart);
     hasLoadedOnce = true;
 
     document.getElementById("input-family").value = monthlyRow ? monthlyRow.family_maintenance : "";
@@ -195,6 +221,8 @@ async function loadMonth() {
     renderFixedList();
     renderDailyList();
     renderCategoryBreakdown();
+    renderBudgets();
+    renderTrend();
     renderSummary();
   } catch (err) {
     console.error(err);
@@ -686,6 +714,244 @@ function renderCategoryBreakdown() {
   }
 }
 
+// ---------- Trend chart ----------
+// Totals per month across the trend window. Spending counts everything that
+// leaves the account: daily + fixed + family maintenance.
+function buildTrend() {
+  const months = [];
+  for (let i = TREND_MONTHS - 1; i >= 0; i--) {
+    const m = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - i, 1);
+    const start = toDateStr(m);
+    const end = toDateStr(monthEndExclusive(m));
+    const mKey = monthKey(m);
+
+    const income = allSalaryPayments
+      .filter((p) => p.date >= start && p.date < end)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const daily = allDailyExpenses
+      .filter((d) => d.date >= start && d.date < end)
+      .reduce((s, d) => s + Number(d.amount), 0);
+    const fixed = allFixedRows
+      .filter((f) => f.month === mKey)
+      .reduce((s, f) => s + Number(f.amount), 0);
+    const monthRow = allMonthlyRows.find((r) => r.month === mKey);
+    const family = monthRow ? Number(monthRow.family_maintenance) : 0;
+
+    months.push({
+      label: m.toLocaleDateString("en-AU", { month: "short" }),
+      income,
+      spending: daily + fixed + family,
+    });
+  }
+  return months;
+}
+
+function renderTrend() {
+  const months = buildTrend();
+  const chart = document.getElementById("trend-chart");
+  const empty = document.getElementById("trend-empty");
+  const max = Math.max(...months.map((m) => Math.max(m.income, m.spending)));
+
+  if (max <= 0) {
+    chart.innerHTML = "";
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+
+  const W = 660;
+  const H = 220;
+  const bottom = 34;      // room for month labels
+  const top = 18;         // room for the tallest bar
+  const plot = H - top - bottom;
+  const groupW = W / months.length;
+  const barW = Math.min(30, groupW / 3);
+  const gap = 6;
+
+  let bars = "";
+  months.forEach((m, i) => {
+    const cx = i * groupW + groupW / 2;
+    const incomeH = (m.income / max) * plot;
+    const spendH = (m.spending / max) * plot;
+    const incomeX = cx - barW - gap / 2;
+    const spendX = cx + gap / 2;
+
+    bars += `
+      <rect class="trend-bar-income" x="${incomeX}" y="${top + plot - incomeH}" width="${barW}" height="${incomeH}" rx="4">
+        <title>${m.label} income: ${fmt(m.income)}</title>
+      </rect>
+      <rect class="trend-bar-spending" x="${spendX}" y="${top + plot - spendH}" width="${barW}" height="${spendH}" rx="4">
+        <title>${m.label} spending: ${fmt(m.spending)}</title>
+      </rect>
+      <text class="trend-label" x="${cx}" y="${H - 12}" text-anchor="middle">${m.label}</text>
+    `;
+  });
+
+  chart.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Income versus spending for the last ${months.length} months">
+      <line class="trend-axis" x1="0" y1="${top + plot}" x2="${W}" y2="${top + plot}" />
+      ${bars}
+    </svg>
+  `;
+}
+
+// ---------- Category budgets ----------
+function budgetFor(category) {
+  const row = categoryBudgets.find((b) => b.category === category);
+  return row ? Number(row.amount) : 0;
+}
+
+function spentByCategoryThisMonth() {
+  const totals = {};
+  for (const d of dailyExpenses) {
+    totals[d.category] = (totals[d.category] || 0) + Number(d.amount);
+  }
+  return totals;
+}
+
+async function saveBudget(category, value) {
+  const amount = parseFloat(value) || 0;
+  const { data, error } = await sb.from("category_budgets")
+    .upsert(
+      { user_id: currentUser.id, category, amount, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,category" }
+    )
+    .select().single();
+  if (error) { console.error(error); toast("Failed to save budget"); return; }
+
+  const existing = categoryBudgets.findIndex((b) => b.category === category);
+  if (existing >= 0) categoryBudgets[existing] = data;
+  else categoryBudgets.push(data);
+
+  renderBudgets();
+  renderSummary();
+}
+
+const budgetTimers = {};
+
+function renderBudgets() {
+  const ul = document.getElementById("budget-list");
+  const spent = spentByCategoryThisMonth();
+  ul.innerHTML = "";
+
+  for (const cat of CATEGORIES) {
+    const budget = budgetFor(cat);
+    const used = spent[cat] || 0;
+    const pct = budget > 0 ? Math.min(100, (used / budget) * 100) : 0;
+    const over = budget > 0 && used > budget;
+    const near = budget > 0 && !over && used >= budget * 0.8;
+
+    const li = document.createElement("li");
+    li.className = "budget-row";
+    li.innerHTML = `
+      <div class="budget-head">
+        <span class="budget-name">${escapeHtml(cat)}</span>
+        <span class="budget-figures ${over ? "negative" : ""}">${fmt(used)}${budget > 0 ? " / " + fmt(budget) : ""}</span>
+        <input class="budget-input" type="number" inputmode="decimal" step="0.01" min="0"
+               placeholder="No limit" aria-label="${escapeHtml(cat)} monthly budget"
+               value="${budget > 0 ? budget : ""}" />
+      </div>
+      ${budget > 0 ? `<div class="budget-track"><div class="budget-fill ${over ? "is-over" : near ? "is-near" : ""}" style="width:${pct}%"></div></div>` : ""}
+    `;
+
+    const input = li.querySelector(".budget-input");
+    input.addEventListener("input", (e) => {
+      clearTimeout(budgetTimers[cat]);
+      budgetTimers[cat] = setTimeout(() => saveBudget(cat, e.target.value), 600);
+    });
+
+    ul.appendChild(li);
+  }
+}
+
+// Suggests a cap per category from the user's own history: the leanest month
+// they actually achieved (ignoring months with no spend in that category), so
+// the target is something already proven doable rather than an invented number.
+// If the suggestions together exceed what's actually available after fixed
+// costs, they're scaled down proportionally to fit.
+function suggestBudgets() {
+  const perCategory = {};
+  const monthsBack = [];
+  for (let i = TREND_MONTHS - 1; i >= 0; i--) {
+    monthsBack.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - i, 1));
+  }
+
+  for (const cat of CATEGORIES) {
+    const monthlyTotals = monthsBack.map((m) => {
+      const start = toDateStr(m);
+      const end = toDateStr(monthEndExclusive(m));
+      return allDailyExpenses
+        .filter((d) => d.category === cat && d.date >= start && d.date < end)
+        .reduce((s, d) => s + Number(d.amount), 0);
+    }).filter((total) => total > 0);
+
+    if (monthlyTotals.length === 0) continue; // no history — leave it unset
+    perCategory[cat] = Math.min(...monthlyTotals);
+  }
+
+  const suggestedTotal = Object.values(perCategory).reduce((s, v) => s + v, 0);
+  if (suggestedTotal === 0) return { perCategory, scaled: false };
+
+  const income = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
+  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  const available = income - family - fixedTotal;
+
+  let scaled = false;
+  if (available > 0 && suggestedTotal > available) {
+    const factor = available / suggestedTotal;
+    for (const cat of Object.keys(perCategory)) perCategory[cat] *= factor;
+    scaled = true;
+  }
+
+  for (const cat of Object.keys(perCategory)) {
+    perCategory[cat] = Math.max(1, Math.round(perCategory[cat]));
+  }
+  return { perCategory, scaled };
+}
+
+document.getElementById("suggest-budgets-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("suggest-budgets-btn");
+  const { perCategory, scaled } = suggestBudgets();
+  const cats = Object.keys(perCategory);
+
+  if (cats.length === 0) {
+    toast("Not enough spending history yet");
+    return;
+  }
+  if (categoryBudgets.some((b) => Number(b.amount) > 0)) {
+    if (!window.confirm("This replaces your current budgets with amounts worked out from your last " + TREND_MONTHS + " months. Continue?")) return;
+  }
+
+  btn.disabled = true;
+  try {
+    const rows = cats.map((cat) => ({
+      user_id: currentUser.id,
+      category: cat,
+      amount: perCategory[cat],
+      updated_at: new Date().toISOString(),
+    }));
+    const { data, error } = await sb.from("category_budgets")
+      .upsert(rows, { onConflict: "user_id,category" })
+      .select();
+    if (error) throw error;
+
+    for (const row of data) {
+      const i = categoryBudgets.findIndex((b) => b.category === row.category);
+      if (i >= 0) categoryBudgets[i] = row;
+      else categoryBudgets.push(row);
+    }
+    renderBudgets();
+    renderSummary();
+    toast(scaled ? "Budgets set and trimmed to fit your income" : "Budgets set from your history");
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't set budgets");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ---------- Summary ----------
 function renderSummary() {
   const salary = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
@@ -807,6 +1073,34 @@ function generateInsights() {
       icon: "🔎",
       text: `${biggestSpike.cat} spending is up ${Math.round(biggestSpike.pctChange)}% vs this point last month (${fmt(biggestSpike.cur)} vs ${fmt(biggestSpike.prev)}).`,
     });
+  }
+
+  // 3b. Categories against their budget — over first, then close to the line.
+  const budgetBreaches = [];
+  for (const cat of CATEGORIES) {
+    const budget = budgetFor(cat);
+    if (budget <= 0) continue;
+    const used = currentByCategory[cat] || 0;
+    if (used > budget) {
+      budgetBreaches.push({ cat, used, budget, over: true, amount: used - budget });
+    } else if (used >= budget * 0.8) {
+      budgetBreaches.push({ cat, used, budget, over: false, amount: budget - used });
+    }
+  }
+  budgetBreaches.sort((a, b) => (b.over ? 1 : 0) - (a.over ? 1 : 0) || b.amount - a.amount);
+  if (budgetBreaches.length > 0) {
+    const b = budgetBreaches[0];
+    insights.push(b.over
+      ? {
+          tone: "warning",
+          icon: "🎯",
+          text: `${b.cat} is ${fmt(b.amount)} over its ${fmt(b.budget)} budget this month.`,
+        }
+      : {
+          tone: "info",
+          icon: "🎯",
+          text: `${b.cat} is close to its budget — ${fmt(b.amount)} left of ${fmt(b.budget)}.`,
+        });
   }
 
   // 4. Biggest category this month, if it clearly dominates.

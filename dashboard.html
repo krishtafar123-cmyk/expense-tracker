@@ -81,6 +81,16 @@
         <ul id="insights-list" class="insights-list"></ul>
       </section>
 
+      <section class="card insights-card" id="trend-card">
+        <h2>📊 Last 6 months</h2>
+        <div class="trend-legend">
+          <span class="trend-key"><span class="trend-swatch trend-swatch-income"></span>Income</span>
+          <span class="trend-key"><span class="trend-swatch trend-swatch-spending"></span>Spending</span>
+        </div>
+        <div id="trend-chart" class="trend-chart"></div>
+        <p id="trend-empty" class="card-hint" hidden>Not enough data yet — this fills in as you log more months.</p>
+      </section>
+
       <div class="columns">
         <section class="card">
           <h2>💵 Salary Payments</h2>
@@ -140,6 +150,13 @@
           <div id="category-breakdown" class="category-breakdown"></div>
 
           <ul id="daily-list" class="item-list daily-list"></ul>
+        </section>
+
+        <section class="card">
+          <h2>🎯 Category Budgets</h2>
+          <p class="card-hint">A monthly cap per category. Leave blank for no limit — bars show what you've spent this month.</p>
+          <button type="button" id="suggest-budgets-btn" class="btn btn-secondary btn-block">Suggest from my history</button>
+          <ul id="budget-list" class="budget-list"></ul>
         </section>
 
         <section class="card">
