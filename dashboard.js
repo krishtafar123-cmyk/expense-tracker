@@ -432,7 +432,7 @@ document.getElementById("savings-form").addEventListener("submit", async (e) => 
   savingsTransactions.sort((a, b) => (a.date < b.date ? 1 : -1));
   renderSavingsList();
   renderSummary();
-  toast(type === "deposit" ? "Deposit added" : "Withdrawal added");
+  toast(type === "deposit" ? "Added to savings" : "Taken from savings");
 });
 
 async function deleteSavingsTransaction(id) {
@@ -457,7 +457,7 @@ function renderSavingsList() {
   for (const t of thisMonth) {
     const li = document.createElement("li");
     const dateLabel = new Date(t.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
-    const label = t.type === "deposit" ? "Deposit" : "Withdrawal";
+    const label = t.type === "deposit" ? "Put in" : "Taken out";
     li.innerHTML = `
       <div class="item-main">
         <span class="item-title">${label} · ${dateLabel}</span>
@@ -469,7 +469,7 @@ function renderSavingsList() {
     li.querySelector(".delete-btn").addEventListener("click", () => deleteSavingsTransaction(t.id));
     attachEdit(li, t, [
       { key: "date", type: "date", required: true },
-      { key: "type", type: "select", options: [{ value: "deposit", label: "Deposit" }, { value: "withdrawal", label: "Withdrawal" }] },
+      { key: "type", type: "select", options: [{ value: "deposit", label: "Put money in" }, { value: "withdrawal", label: "Take money out" }] },
       { key: "amount", type: "number", required: true },
       { key: "note", type: "text", placeholder: "Note (optional)", nullable: true },
     ], "savings_transactions", renderSavingsList);

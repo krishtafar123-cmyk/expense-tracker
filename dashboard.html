@@ -53,7 +53,7 @@
           <div class="summary-value" id="sum-daily">$0</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">Savings (this month)</div>
+          <div class="summary-label">Saved this month</div>
           <div class="summary-value" id="sum-savings">$0</div>
         </div>
         <div class="summary-card summary-card-highlight" id="sum-remaining-card">
@@ -136,17 +136,19 @@
         <section class="card">
           <h2>🏦 Savings</h2>
           <div class="savings-balance">
-            <div class="summary-label">All-time balance</div>
+            <div class="summary-label">Total saved so far</div>
             <div class="savings-balance-value" id="savings-balance">$0</div>
           </div>
+
+          <p class="card-hint">Money you put aside lowers this month's Remaining. Money you take back out raises it.</p>
 
           <ul id="savings-list" class="item-list"></ul>
 
           <form id="savings-form" class="daily-form">
             <input type="date" id="savings-date" required />
             <select id="savings-type" required>
-              <option value="deposit">Deposit</option>
-              <option value="withdrawal">Withdrawal</option>
+              <option value="deposit">Put money in</option>
+              <option value="withdrawal">Take money out</option>
             </select>
             <input type="number" inputmode="decimal" id="savings-amount" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="savings-note" placeholder="Note (optional)" />

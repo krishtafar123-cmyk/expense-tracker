@@ -398,6 +398,13 @@ input, select { font-family: inherit; }
   margin-top: 4px;
 }
 
+.card-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
 .field {
   display: block;
   font-size: 13px;
