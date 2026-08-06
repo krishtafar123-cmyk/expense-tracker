@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Expense Tracker</title>
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#fdf6f0" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#201a16" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f7f8f4" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#191d19" media="(prefers-color-scheme: dark)" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Expenses" />
 <link rel="apple-touch-icon" href="icon-192.png" />
@@ -108,7 +108,11 @@
           <h2>🧾 Daily Expenses</h2>
 
           <form id="daily-form" class="daily-form">
-            <input type="date" id="daily-date" required />
+            <div class="date-auto" id="daily-date-display">
+              <span>📅 <span id="daily-date-label">Today</span></span>
+              <button type="button" class="link-btn" id="daily-date-change">Change</button>
+            </div>
+            <input type="date" id="daily-date" hidden />
             <select id="daily-category" required>
               <option>Food</option>
               <option>Groceries</option>

@@ -57,7 +57,7 @@ sb.auth.onAuthStateChange((_event, session) => {
 
 function startApp() {
   document.getElementById("user-email").textContent = currentUser.email;
-  document.getElementById("daily-date").value = toDateStr(new Date());
+  resetDailyDateToToday();
   document.getElementById("salary-date").value = toDateStr(new Date());
   document.getElementById("savings-date").value = toDateStr(new Date());
   loadMonth();
@@ -477,6 +477,44 @@ function renderSavingsList() {
   }
 }
 
+// ---------- Daily expense date ----------
+// Defaults to today so logging an expense is just amount + category. The
+// picker stays available behind "Change" for back-dating something you forgot.
+// Note: the input is deliberately not `required` — a hidden required field
+// silently blocks form submission in browsers.
+let dailyDateManual = false;
+
+function setDailyDateLabel() {
+  const input = document.getElementById("daily-date");
+  const label = document.getElementById("daily-date-label");
+  const todayStr = toDateStr(new Date());
+  const asDate = new Date((input.value || todayStr) + "T00:00:00");
+  label.textContent = (!input.value || input.value === todayStr)
+    ? "Today, " + asDate.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+    : asDate.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function resetDailyDateToToday() {
+  dailyDateManual = false;
+  document.getElementById("daily-date").value = toDateStr(new Date());
+  document.getElementById("daily-date").hidden = true;
+  document.getElementById("daily-date-display").hidden = false;
+  setDailyDateLabel();
+}
+
+document.getElementById("daily-date-change").addEventListener("click", () => {
+  dailyDateManual = true;
+  const input = document.getElementById("daily-date");
+  input.hidden = false;
+  document.getElementById("daily-date-display").hidden = true;
+  input.focus();
+  if (input.showPicker) {
+    try { input.showPicker(); } catch (err) { /* not supported / not user-activated */ }
+  }
+});
+
+document.getElementById("daily-date").addEventListener("change", setDailyDateLabel);
+
 // ---------- Daily expenses ----------
 document.getElementById("daily-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -495,6 +533,7 @@ document.getElementById("daily-form").addEventListener("submit", async (e) => {
 
   amountInput.value = "";
   noteInput.value = "";
+  resetDailyDateToToday();
 
   if (date >= toDateStr(currentMonth) && date < toDateStr(monthEndExclusive(currentMonth))) {
     dailyExpenses.unshift(data);
@@ -743,6 +782,9 @@ setInterval(() => {
   if (nowStr === lastCheckedDate) return;
   lastCheckedDate = nowStr;
   renderTodaySummary();
+  // Roll the entry date over too, so an app left open overnight doesn't file
+  // tomorrow's expenses under yesterday. A manual override is left alone.
+  if (!dailyDateManual) resetDailyDateToToday();
 }, 60000);
 
 function escapeHtml(str) {

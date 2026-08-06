@@ -1,28 +1,36 @@
 :root {
-  --bg: #fdf6f0;
+  --bg: #f7f8f4;
   --card-bg: #ffffff;
-  --text: #2b241f;
-  --text-muted: #8a7a6e;
-  --border: #f0e2d4;
-  --primary: #f0653a;
-  --primary-hover: #d8532a;
-  --accent: #f5a623;
-  --green: #3f9142;
-  --red: #d0453a;
-  --shadow: 0 4px 14px rgba(224,120,60,0.10);
+  --text: #232a24;
+  --text-muted: #6f7a6f;
+  --border: #e2e8de;
+  --primary: #5d7d5f;
+  --primary-hover: #4c684e;
+  --accent: #93b088;
+  /* Text/icons sitting on top of --primary. */
+  --on-primary: #ffffff;
+  --on-primary-muted: rgba(255,255,255,0.85);
+  --green: #3f8a4c;
+  --red: #c05a4e;
+  --shadow: 0 4px 14px rgba(60,80,60,0.08);
   --radius: 18px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #201a16;
-    --card-bg: #2b2320;
-    --text: #f3ebe4;
-    --text-muted: #ab9a8d;
-    --border: #40342c;
-    --primary: #ff8360;
-    --primary-hover: #ff9d7d;
-    --accent: #ffb84d;
+    --bg: #191d19;
+    --card-bg: #232823;
+    --text: #e9eee8;
+    --text-muted: #99a598;
+    --border: #333b33;
+    --primary: #8fb891;
+    --primary-hover: #a6c9a7;
+    --accent: #b3cba8;
+    /* Primary is light in dark mode, so what sits on it must be dark. */
+    --on-primary: #16201a;
+    --on-primary-muted: rgba(22,32,26,0.75);
+    --green: #7bbf85;
+    --red: #e08279;
     --shadow: 0 4px 14px rgba(0,0,0,0.35);
   }
 }
@@ -193,7 +201,7 @@ input, select { font-family: inherit; }
   transition: background 0.15s;
 }
 
-.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary { background: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary-hover); }
 
 .btn-secondary {
@@ -280,9 +288,9 @@ input, select { font-family: inherit; }
 
 .summary-card-highlight {
   background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: #fff;
+  color: var(--on-primary);
 }
-.summary-card-highlight .summary-label { color: rgba(255,255,255,0.85); }
+.summary-card-highlight .summary-label { color: var(--on-primary-muted); }
 
 .summary-label {
   font-size: 12px;
@@ -524,6 +532,23 @@ input, select { font-family: inherit; }
 }
 .daily-form button { grid-column: 1 / -1; }
 #salary-form #salary-note { grid-column: 1 / -1; }
+#daily-note, #daily-date { grid-column: 1 / -1; }
+
+/* Auto date line in the daily form. Scoped to :not([hidden]) so toggling the
+   hidden attribute actually hides it despite the display rule. */
+.date-auto {
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 14px;
+}
+
+.date-auto:not([hidden]) { display: flex; }
 
 /* ---------- Category breakdown ---------- */
 .category-breakdown {
