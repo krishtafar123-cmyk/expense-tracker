@@ -1,0 +1,50 @@
+-- Run this once in your Supabase project's SQL Editor
+-- (Project → SQL Editor → New query → paste → Run)
+
+create extension if not exists pgcrypto;
+
+create table if not exists monthly_data (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  month date not null,
+  salary numeric not null default 0,
+  family_maintenance numeric not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, month)
+);
+
+create table if not exists fixed_expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  month date not null,
+  name text not null,
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists daily_expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  category text not null default 'Other',
+  amount numeric not null default 0,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
+create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
+
+alter table monthly_data enable row level security;
+alter table fixed_expenses enable row level security;
+alter table daily_expenses enable row level security;
+
+create policy "own monthly_data" on monthly_data
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "own fixed_expenses" on fixed_expenses
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "own daily_expenses" on daily_expenses
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

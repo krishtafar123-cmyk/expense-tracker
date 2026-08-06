@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Expense Tracker</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <h1>💰 Expense Tracker</h1>
+      <p class="auth-subtitle">Track salary, fixed expenses, family maintenance &amp; daily spending — synced across all your devices.</p>
+
+      <form id="auth-form">
+        <label>Email
+          <input type="email" id="auth-email" required autocomplete="email" />
+        </label>
+        <label>Password
+          <input type="password" id="auth-password" required autocomplete="current-password" minlength="6" />
+        </label>
+        <div id="auth-error" class="auth-error" hidden></div>
+        <button type="submit" id="auth-submit" class="btn btn-primary btn-block">Log In</button>
+      </form>
+
+      <p class="auth-toggle">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <button id="auth-toggle-btn" class="link-btn">Sign up</button>
+      </p>
+      <p id="auth-info" class="auth-info" hidden></p>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app-screen" class="app-screen" hidden>
+    <header class="topbar">
+      <div class="topbar-brand">💰 Expense Tracker</div>
+      <div class="month-nav">
+        <button id="month-prev" class="icon-btn" aria-label="Previous month">‹</button>
+        <span id="month-label" class="month-label">August 2026</span>
+        <button id="month-next" class="icon-btn" aria-label="Next month">›</button>
+      </div>
+      <div class="topbar-user">
+        <span id="user-email"></span>
+        <button id="logout-btn" class="btn btn-ghost">Log out</button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <section class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Salary</div>
+          <div class="summary-value" id="sum-salary">$0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Fixed Expenses</div>
+          <div class="summary-value" id="sum-fixed">$0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Family Maintenance</div>
+          <div class="summary-value" id="sum-family">$0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Daily Expenses</div>
+          <div class="summary-value" id="sum-daily">$0</div>
+        </div>
+        <div class="summary-card summary-card-highlight" id="sum-remaining-card">
+          <div class="summary-label">Remaining</div>
+          <div class="summary-value" id="sum-remaining">$0</div>
+        </div>
+      </section>
+
+      <div id="copy-prompt" class="copy-prompt" hidden>
+        <span>No setup found for this month yet.</span>
+        <button id="copy-prev-btn" class="btn btn-secondary">Copy from previous month</button>
+      </div>
+
+      <div class="columns">
+        <section class="card">
+          <h2>Monthly Setup</h2>
+
+          <label class="field">
+            Salary
+            <input type="number" id="input-salary" step="0.01" min="0" placeholder="0.00" />
+          </label>
+
+          <label class="field">
+            Family Maintenance
+            <input type="number" id="input-family" step="0.01" min="0" placeholder="0.00" />
+          </label>
+
+          <h3 class="subheading">Fixed Expenses</h3>
+          <ul id="fixed-list" class="item-list"></ul>
+
+          <form id="fixed-form" class="inline-form">
+            <input type="text" id="fixed-name" placeholder="Name (e.g. Rent)" required />
+            <input type="number" id="fixed-amount" placeholder="Amount" step="0.01" min="0" required />
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2>Daily Expenses</h2>
+
+          <form id="daily-form" class="daily-form">
+            <input type="date" id="daily-date" required />
+            <select id="daily-category" required>
+              <option>Food</option>
+              <option>Groceries</option>
+              <option>Transport</option>
+              <option>Shopping</option>
+              <option>Bills</option>
+              <option>Health</option>
+              <option>Entertainment</option>
+              <option>Other</option>
+            </select>
+            <input type="number" id="daily-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="daily-note" placeholder="Note (optional)" />
+            <button type="submit" class="btn btn-primary">Add Expense</button>
+          </form>
+
+          <div id="category-breakdown" class="category-breakdown"></div>
+
+          <ul id="daily-list" class="item-list daily-list"></ul>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
