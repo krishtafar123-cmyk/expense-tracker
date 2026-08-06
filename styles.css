@@ -12,6 +12,9 @@
   --on-primary-muted: rgba(255,255,255,0.85);
   --green: #3f8a4c;
   --red: #c05a4e;
+  /* Chart series need distinct hues, not two shades of the same green. */
+  --chart-income: #5d7d5f;
+  --chart-spending: #c08155;
   --shadow: 0 4px 14px rgba(60,80,60,0.08);
   --radius: 18px;
 }
@@ -31,6 +34,8 @@
     --on-primary-muted: rgba(22,32,26,0.75);
     --green: #7bbf85;
     --red: #e08279;
+    --chart-income: #8fb891;
+    --chart-spending: #d69b70;
     --shadow: 0 4px 14px rgba(0,0,0,0.35);
   }
 }
@@ -434,8 +439,8 @@ input, select { font-family: inherit; }
   border-radius: 3px;
   display: inline-block;
 }
-.trend-swatch-income { background: var(--accent); }
-.trend-swatch-spending { background: var(--primary); }
+.trend-swatch-income { background: var(--chart-income); }
+.trend-swatch-spending { background: var(--chart-spending); }
 
 .trend-chart svg {
   width: 100%;
@@ -444,8 +449,8 @@ input, select { font-family: inherit; }
   overflow: visible;
 }
 
-.trend-bar-income { fill: var(--accent); }
-.trend-bar-spending { fill: var(--primary); }
+.trend-bar-income { fill: var(--chart-income); }
+.trend-bar-spending { fill: var(--chart-spending); }
 .trend-axis { stroke: var(--border); stroke-width: 1; }
 .trend-label { fill: var(--text-muted); font-size: 13px; }
 
