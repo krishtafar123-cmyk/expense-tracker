@@ -25,6 +25,10 @@
     <main class="content">
 
       <section class="summary-grid">
+        <div class="summary-card" id="today-card" hidden>
+          <div class="summary-label">Today</div>
+          <div class="summary-value" id="sum-today">$0</div>
+        </div>
         <div class="summary-card">
           <div class="summary-label">Salary</div>
           <div class="summary-value" id="sum-salary">$0</div>
@@ -54,12 +58,20 @@
 
       <div class="columns">
         <section class="card">
-          <h2>Monthly Setup</h2>
+          <h2>Salary Payments</h2>
 
-          <label class="field">
-            Salary
-            <input type="number" id="input-salary" step="0.01" min="0" placeholder="0.00" />
-          </label>
+          <ul id="salary-list" class="item-list"></ul>
+
+          <form id="salary-form" class="daily-form">
+            <input type="date" id="salary-date" required />
+            <input type="number" id="salary-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="salary-note" placeholder="Note (optional)" />
+            <button type="submit" class="btn btn-primary">Add Payment</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2>Monthly Setup</h2>
 
           <label class="field">
             Family Maintenance

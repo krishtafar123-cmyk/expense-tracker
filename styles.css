@@ -317,12 +317,11 @@ input, select { font-family: inherit; }
 /* ---------- Columns / cards ---------- */
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
 }
 
 @media (max-width: 800px) {
-  .columns { grid-template-columns: 1fr; }
   .topbar { justify-content: center; text-align: center; }
 }
 
@@ -436,6 +435,7 @@ input, select { font-family: inherit; }
   width: 100%;
 }
 .daily-form button { grid-column: 1 / -1; }
+#salary-form #salary-note { grid-column: 1 / -1; }
 
 /* ---------- Category breakdown ---------- */
 .category-breakdown {
