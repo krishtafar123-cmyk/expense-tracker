@@ -65,6 +65,15 @@ If you set this up before these features existed, run these once each in Supabas
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 
+## Install it on your phone
+
+The app is a PWA, so it can live on your home screen and open fullscreen with no browser chrome:
+
+- **Android / Chrome**: open the site, tap the ⋮ menu → **Add to Home screen** (or accept the install prompt).
+- **iPhone / Safari**: open the site, tap the Share button → **Add to Home Screen**.
+
+A service worker caches the app shell, so the app opens instantly and still loads when offline. Note that your *data* still needs a connection — Supabase is the source of truth, so adding an expense offline will fail.
+
 ## How it works / what's stored
 
 - **Pages**: `index.html` is the login page (email + PIN), `dashboard.html` is the app. Visiting either while already logged in / logged out redirects you to the right one automatically.
@@ -72,8 +81,13 @@ A fresh setup via `schema.sql` already includes both — no migration needed.
 - Under the hood, the PIN is just your Supabase account password — there's no separate PIN system, so an email is still required by Supabase itself; this app just hides that after the first login on each device.
 - **Salary Payments**: logged individually with a date (and optional note) rather than one monthly number, since fortnightly pay lands on different days each month. The month's total is just whatever payments actually landed in it.
 - **Monthly Setup** (family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
-- **Daily Expenses** are logged with a date, category, amount, and optional note, and are totalled for whichever month you're viewing. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
-- **Savings**: deposits and withdrawals with dates, showing an all-time running balance plus this month's activity. Money moved to savings this month reduces **Remaining** (a withdrawal adds back to it).
+- **Daily Expenses** default to today's date, so logging is just category + amount. Use **Change** on the date line to back-date something you forgot. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
+- **Editing**: every row in every list has a ✎ button that swaps it into an inline form. Saving reloads the month, so totals stay correct even if you move an entry to a different date.
+- **Savings**: dated deposits and withdrawals, showing an all-time running balance plus this month's activity.
+  - **Deposit** = money moved *into* savings. Balance goes up, **Remaining** goes down (it's no longer available to spend).
+  - **Withdrawal** = money taken *back out* of savings to spend. Balance goes down, **Remaining** goes up.
+  - The big number on the card is the all-time balance (every deposit minus every withdrawal, carried across months). The list below it shows only the current month's activity.
+  - If you withdraw more than you deposit in a month, that month's net savings is negative and correctly *increases* Remaining.
 - **Insights**: a few rule-based observations computed from your own data (no external AI, nothing leaves Supabase) — over-budget warnings, a spending-pace projection with a suggested daily cap, category spikes vs. the same point last month, your dominant category, and how much of your salary is already committed to fixed costs.
 - **Remaining** = Salary − Family Maintenance − Fixed Expenses − Daily Expenses − Savings (this month's net deposits), for the selected month.
 
