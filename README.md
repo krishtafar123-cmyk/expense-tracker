@@ -56,14 +56,26 @@ Open `index.html` in a browser (double-click it, or right-click → Open with �
 
 Open the resulting URL on your phone and log in with the same email + PIN — your data will be there because it's stored in Supabase, not the browser.
 
+## Updates that need a one-time SQL migration
+
+If you set this up before these features existed, run these once each in Supabase's SQL Editor (safe to run alongside your existing data):
+
+- [migration_salary_payments.sql](migration_salary_payments.sql) — adds dated Salary Payments (for fortnightly/irregular pay), replacing the old single monthly salary figure.
+- [migration_savings.sql](migration_savings.sql) — adds the Savings tab (deposits/withdrawals with a running balance).
+
+A fresh setup via `schema.sql` already includes both — no migration needed.
+
 ## How it works / what's stored
 
 - **Pages**: `index.html` is the login page (email + PIN), `dashboard.html` is the app. Visiting either while already logged in / logged out redirects you to the right one automatically.
 - **Login flow**: the first time on a device, you enter your email once, then set (or enter) your PIN. From then on, that device remembers the email (in its browser storage) and only ever asks for the PIN — like a banking app's quick-unlock. A "‹ Back" link forgets the remembered email if you want to switch accounts on that device.
 - Under the hood, the PIN is just your Supabase account password — there's no separate PIN system, so an email is still required by Supabase itself; this app just hides that after the first login on each device.
-- **Monthly Setup** (salary, family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
-- **Daily Expenses** are logged with a date, category, amount, and optional note, and are totalled for whichever month you're viewing.
-- **Remaining** = Salary − Family Maintenance − Fixed Expenses − Daily Expenses, for the selected month.
+- **Salary Payments**: logged individually with a date (and optional note) rather than one monthly number, since fortnightly pay lands on different days each month. The month's total is just whatever payments actually landed in it.
+- **Monthly Setup** (family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
+- **Daily Expenses** are logged with a date, category, amount, and optional note, and are totalled for whichever month you're viewing. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
+- **Savings**: deposits and withdrawals with dates, showing an all-time running balance plus this month's activity. Money moved to savings this month reduces **Remaining** (a withdrawal adds back to it).
+- **Insights**: a few rule-based observations computed from your own data (no external AI, nothing leaves Supabase) — over-budget warnings, a spending-pace projection with a suggested daily cap, category spikes vs. the same point last month, your dominant category, and how much of your salary is already committed to fixed costs.
+- **Remaining** = Salary − Family Maintenance − Fixed Expenses − Daily Expenses − Savings (this month's net deposits), for the selected month.
 
 ## Troubleshooting
 
@@ -71,3 +83,4 @@ Open the resulting URL on your phone and log in with the same email + PIN — yo
 - **Can't log in after signup**: check step 4 — either disable email confirmation or click the link in your inbox.
 - **Data not showing on another device**: make sure you're logged into the same account (same email) on both.
 - **Forgot your PIN**: there's no reset flow built in yet. Go to Supabase → **Authentication → Users**, delete that user, and sign up again.
+- **Salary Payments or Savings tab errors out**: you likely haven't run the matching migration yet — see "Updates that need a one-time SQL migration" above.

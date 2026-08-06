@@ -22,6 +22,7 @@ let fixedExpenses = [];
 let dailyExpenses = [];
 let salaryPayments = [];
 let prevMonthDailyExpenses = [];
+let savingsTransactions = []; // all-time, for the running balance
 
 function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function monthKey(d) {
@@ -58,6 +59,7 @@ function startApp() {
   document.getElementById("user-email").textContent = currentUser.email;
   document.getElementById("daily-date").value = toDateStr(new Date());
   document.getElementById("salary-date").value = toDateStr(new Date());
+  document.getElementById("savings-date").value = toDateStr(new Date());
   loadMonth();
 }
 
@@ -78,7 +80,7 @@ async function loadMonth() {
 
   const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
 
-  const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes] = await Promise.all([
+  const [monthlyRes, fixedRes, dailyRes, salaryRes, prevDailyRes, savingsRes] = await Promise.all([
     sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", key).maybeSingle(),
     sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", key).order("created_at"),
     sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
@@ -89,6 +91,7 @@ async function loadMonth() {
       .order("date", { ascending: false }),
     sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
       .gte("date", toDateStr(prevMonth)).lt("date", toDateStr(monthEndExclusive(prevMonth))),
+    sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
   ]);
 
   if (monthlyRes.error) console.error(monthlyRes.error);
@@ -96,18 +99,21 @@ async function loadMonth() {
   if (dailyRes.error) console.error(dailyRes.error);
   if (salaryRes.error) console.error(salaryRes.error);
   if (prevDailyRes.error) console.error(prevDailyRes.error);
+  if (savingsRes.error) console.error(savingsRes.error);
 
   monthlyRow = monthlyRes.data || null;
   fixedExpenses = fixedRes.data || [];
   dailyExpenses = dailyRes.data || [];
   salaryPayments = salaryRes.data || [];
   prevMonthDailyExpenses = prevDailyRes.data || [];
+  savingsTransactions = savingsRes.data || [];
 
   document.getElementById("input-family").value = monthlyRow ? monthlyRow.family_maintenance : "";
 
   document.getElementById("copy-prompt").hidden = !!monthlyRow;
 
   renderSalaryList();
+  renderSavingsList();
   renderFixedList();
   renderDailyList();
   renderCategoryBreakdown();
@@ -289,6 +295,80 @@ function renderSalaryList() {
   }
 }
 
+// ---------- Savings ----------
+// savingsTransactions holds every transaction ever (for the all-time balance);
+// "this month" is derived from it client-side rather than a second query.
+function signedAmount(tx) {
+  return tx.type === "withdrawal" ? -Number(tx.amount) : Number(tx.amount);
+}
+
+function savingsThisMonth() {
+  const start = toDateStr(currentMonth);
+  const end = toDateStr(monthEndExclusive(currentMonth));
+  return savingsTransactions.filter((t) => t.date >= start && t.date < end);
+}
+
+document.getElementById("savings-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const date = document.getElementById("savings-date").value;
+  const type = document.getElementById("savings-type").value;
+  const amountInput = document.getElementById("savings-amount");
+  const noteInput = document.getElementById("savings-note");
+  const amount = parseFloat(amountInput.value);
+  const note = noteInput.value.trim();
+  if (!date || isNaN(amount)) return;
+
+  const { data, error } = await sb.from("savings_transactions")
+    .insert({ user_id: currentUser.id, date, type, amount, note: note || null })
+    .select().single();
+  if (error) { console.error(error); toast("Failed to add"); return; }
+
+  amountInput.value = "";
+  noteInput.value = "";
+
+  savingsTransactions.unshift(data);
+  savingsTransactions.sort((a, b) => (a.date < b.date ? 1 : -1));
+  renderSavingsList();
+  renderSummary();
+  toast(type === "deposit" ? "Deposit added" : "Withdrawal added");
+});
+
+async function deleteSavingsTransaction(id) {
+  const { error } = await sb.from("savings_transactions").delete().eq("id", id);
+  if (error) { console.error(error); toast("Failed to delete"); return; }
+  savingsTransactions = savingsTransactions.filter((t) => t.id !== id);
+  renderSavingsList();
+  renderSummary();
+}
+
+function renderSavingsList() {
+  const balance = savingsTransactions.reduce((s, t) => s + signedAmount(t), 0);
+  document.getElementById("savings-balance").textContent = fmt(balance);
+
+  const ul = document.getElementById("savings-list");
+  ul.innerHTML = "";
+  const thisMonth = savingsThisMonth();
+  if (thisMonth.length === 0) {
+    ul.innerHTML = '<li class="empty-state">No savings activity this month.</li>';
+    return;
+  }
+  for (const t of thisMonth) {
+    const li = document.createElement("li");
+    const dateLabel = new Date(t.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    const label = t.type === "deposit" ? "Deposit" : "Withdrawal";
+    li.innerHTML = `
+      <div class="item-main">
+        <span class="item-title">${label} · ${dateLabel}</span>
+        ${t.note ? `<span class="item-sub">${escapeHtml(t.note)}</span>` : ""}
+      </div>
+      <span class="item-amount">${t.type === "withdrawal" ? "-" : ""}${fmt(t.amount)}</span>
+      <button class="delete-btn" aria-label="Delete">✕</button>
+    `;
+    li.querySelector(".delete-btn").addEventListener("click", () => deleteSavingsTransaction(t.id));
+    ul.appendChild(li);
+  }
+}
+
 // ---------- Daily expenses ----------
 document.getElementById("daily-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -378,12 +458,14 @@ function renderSummary() {
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
   const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
-  const remaining = salary - family - fixedTotal - dailyTotal;
+  const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
+  const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
 
   document.getElementById("sum-salary").textContent = fmt(salary);
   document.getElementById("sum-fixed").textContent = fmt(fixedTotal);
   document.getElementById("sum-family").textContent = fmt(family);
   document.getElementById("sum-daily").textContent = fmt(dailyTotal);
+  document.getElementById("sum-savings").textContent = fmt(netSavings);
 
   const remainingEl = document.getElementById("sum-remaining");
   remainingEl.textContent = fmt(remaining);
@@ -425,8 +507,9 @@ function generateInsights() {
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
   const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
-  const remaining = salary - family - fixedTotal - dailyTotal;
-  const budgetForDaily = salary - family - fixedTotal;
+  const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
+  const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
+  const budgetForDaily = salary - family - fixedTotal - netSavings;
 
   const today = new Date();
   const viewingCurrentMonth = today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();

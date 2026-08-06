@@ -45,6 +45,10 @@
           <div class="summary-label">Daily Expenses</div>
           <div class="summary-value" id="sum-daily">$0</div>
         </div>
+        <div class="summary-card">
+          <div class="summary-label">Savings (this month)</div>
+          <div class="summary-value" id="sum-savings">$0</div>
+        </div>
         <div class="summary-card summary-card-highlight" id="sum-remaining-card">
           <div class="summary-label">Remaining</div>
           <div class="summary-value" id="sum-remaining">$0</div>
@@ -116,6 +120,27 @@
           <div id="category-breakdown" class="category-breakdown"></div>
 
           <ul id="daily-list" class="item-list daily-list"></ul>
+        </section>
+
+        <section class="card">
+          <h2>Savings</h2>
+          <div class="savings-balance">
+            <div class="summary-label">All-time balance</div>
+            <div class="savings-balance-value" id="savings-balance">$0</div>
+          </div>
+
+          <ul id="savings-list" class="item-list"></ul>
+
+          <form id="savings-form" class="daily-form">
+            <input type="date" id="savings-date" required />
+            <select id="savings-type" required>
+              <option value="deposit">Deposit</option>
+              <option value="withdrawal">Withdrawal</option>
+            </select>
+            <input type="number" id="savings-amount" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="savings-note" placeholder="Note (optional)" />
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
         </section>
       </div>
     </main>

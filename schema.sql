@@ -41,14 +41,26 @@ create table if not exists salary_payments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists savings_transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  type text not null check (type in ('deposit', 'withdrawal')),
+  amount numeric not null default 0,
+  note text,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
 create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
 create index if not exists idx_salary_payments_date on salary_payments(user_id, date);
+create index if not exists idx_savings_transactions_date on savings_transactions(user_id, date);
 
 alter table monthly_data enable row level security;
 alter table fixed_expenses enable row level security;
 alter table daily_expenses enable row level security;
 alter table salary_payments enable row level security;
+alter table savings_transactions enable row level security;
 
 create policy "own monthly_data" on monthly_data
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -60,4 +72,7 @@ create policy "own daily_expenses" on daily_expenses
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "own salary_payments" on salary_payments
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "own savings_transactions" on savings_transactions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -375,6 +375,19 @@ input, select { font-family: inherit; }
   margin: 20px 0 10px;
 }
 
+.savings-balance {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.savings-balance-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
 .field {
   display: block;
   font-size: 13px;
