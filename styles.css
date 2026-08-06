@@ -63,35 +63,34 @@ input, select { font-family: inherit; }
   font-size: 24px;
 }
 
+.greeting {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.greeting-emoji {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.greeting h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
 .auth-subtitle {
   color: var(--text-muted);
   font-size: 14px;
   margin: 0 0 24px;
-}
-
-#auth-form label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-
-#auth-form input {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14px;
+  text-align: center;
 }
 
 .auth-error {
   color: var(--red);
   font-size: 13px;
   margin-bottom: 12px;
+  text-align: center;
 }
 
 .auth-info {
@@ -115,6 +114,71 @@ input, select { font-family: inherit; }
   font-weight: 600;
   font-size: 13px;
   padding: 0;
+}
+
+/* ---------- PIN pad ---------- */
+.pin-heading {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.pin-subheading {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+  word-break: break-all;
+}
+
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.pin-dot.filled {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pin-key {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.pin-key:hover {
+  border-color: var(--primary);
+}
+
+.pin-key-back {
+  font-size: 16px;
+  color: var(--text-muted);
+  border: none;
+  background: transparent;
 }
 
 /* ---------- Buttons ---------- */

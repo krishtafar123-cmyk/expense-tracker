@@ -40,77 +40,19 @@ function toDateStr(d) {
   return `${y}-${m}-${day}`;
 }
 
-// ---------- Auth ----------
-const authScreen = document.getElementById("auth-screen");
-const appScreen = document.getElementById("app-screen");
-const authForm = document.getElementById("auth-form");
-const authError = document.getElementById("auth-error");
-const authInfo = document.getElementById("auth-info");
-const authSubmit = document.getElementById("auth-submit");
-const authToggleText = document.getElementById("auth-toggle-text");
-const authToggleBtn = document.getElementById("auth-toggle-btn");
-
-let mode = "login"; // or "signup"
-
-authToggleBtn.addEventListener("click", () => {
-  mode = mode === "login" ? "signup" : "login";
-  authSubmit.textContent = mode === "login" ? "Log In" : "Sign Up";
-  authToggleText.textContent = mode === "login" ? "Don't have an account?" : "Already have an account?";
-  authToggleBtn.textContent = mode === "login" ? "Sign up" : "Log in";
-  authError.hidden = true;
-  authInfo.hidden = true;
-});
-
-authForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  authError.hidden = true;
-  authInfo.hidden = true;
-  const email = document.getElementById("auth-email").value.trim();
-  const password = document.getElementById("auth-password").value;
-
-  authSubmit.disabled = true;
-  try {
-    if (mode === "login") {
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-    } else {
-      const { data, error } = await sb.auth.signUp({ email, password });
-      if (error) throw error;
-      if (!data.session) {
-        authInfo.textContent = "Check your email to confirm your account, then log in.";
-        authInfo.hidden = false;
-      }
-    }
-  } catch (err) {
-    authError.textContent = err.message || "Something went wrong.";
-    authError.hidden = false;
-  } finally {
-    authSubmit.disabled = false;
-  }
-});
-
+// ---------- Auth guard ----------
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await sb.auth.signOut();
+  window.location.href = "index.html";
 });
 
 sb.auth.onAuthStateChange((_event, session) => {
-  if (session && session.user) {
-    currentUser = session.user;
-    showApp();
-  } else {
-    currentUser = null;
-    showAuth();
+  if (!session || !session.user) {
+    window.location.href = "index.html";
   }
 });
 
-function showAuth() {
-  authScreen.hidden = false;
-  appScreen.hidden = true;
-}
-
-function showApp() {
-  authScreen.hidden = true;
-  appScreen.hidden = false;
+function startApp() {
   document.getElementById("user-email").textContent = currentUser.email;
   document.getElementById("daily-date").value = toDateStr(new Date());
   loadMonth();
@@ -389,10 +331,10 @@ function escapeHtml(str) {
 // ---------- Init ----------
 (async function init() {
   const { data } = await sb.auth.getSession();
-  if (data.session && data.session.user) {
-    currentUser = data.session.user;
-    showApp();
-  } else {
-    showAuth();
+  if (!data.session || !data.session.user) {
+    window.location.href = "index.html";
+    return;
   }
+  currentUser = data.session.user;
+  startApp();
 })();
