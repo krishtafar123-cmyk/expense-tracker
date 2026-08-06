@@ -1,13 +1,16 @@
 // Bump CACHE when the shell changes so old entries are cleared on activate.
-const CACHE = "expense-tracker-v2";
+const CACHE = "expense-tracker-v3";
 
 const SHELL = [
   "./",
   "./index.html",
   "./dashboard.html",
+  "./reset.html",
   "./styles.css",
   "./auth.js",
   "./dashboard.js",
+  "./reset.js",
+  "./shared.js",
   "./config.js",
   "./pwa.js",
   "./manifest.json",

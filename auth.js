@@ -1,6 +1,6 @@
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-const EMAIL_KEY = "expensetracker_email";
+// EMAIL_KEY / LOCK_KEY / LAST_ACTIVITY_KEY come from shared.js.
 const PIN_LENGTH = 6;
 
 let mode = "login"; // "login" | "signup" — which action a completed PIN triggers
@@ -144,12 +144,47 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.getElementById("pin-back-btn").addEventListener("click", () => {
+document.getElementById("pin-back-btn").addEventListener("click", async () => {
+  // Backing out of a locked session ends it, rather than leaving a live
+  // session sitting behind a lock screen the user just walked away from.
+  if (localStorage.getItem(LOCK_KEY) === "1") {
+    localStorage.removeItem(LOCK_KEY);
+    await sb.auth.signOut();
+  }
   localStorage.removeItem(EMAIL_KEY);
   cameFromRememberedEmail = false;
+  currentPin = "";
+  renderPinDots();
+  pinError.hidden = true;
+  pinInfo.hidden = true;
   setMode("login");
   emailInput.value = "";
   showStep("email");
+});
+
+// ---------- Forgot PIN ----------
+document.getElementById("forgot-pin-btn").addEventListener("click", async () => {
+  const email = pendingEmail || emailInput.value.trim();
+  pinError.hidden = true;
+  pinInfo.hidden = true;
+  if (!email) {
+    pinError.textContent = "Enter your email first.";
+    pinError.hidden = false;
+    return;
+  }
+  const btn = document.getElementById("forgot-pin-btn");
+  btn.disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: new URL("reset.html", window.location.href).href,
+  });
+  btn.disabled = false;
+  if (error) {
+    pinError.textContent = error.message;
+    pinError.hidden = false;
+    return;
+  }
+  pinInfo.textContent = "Reset link sent to " + email + ". Open it to choose a new PIN.";
+  pinInfo.hidden = false;
 });
 
 async function handlePinComplete() {
@@ -195,7 +230,7 @@ async function doSignUp(email, pin) {
   }
   localStorage.setItem(EMAIL_KEY, email);
   if (data.session) {
-    window.location.href = "dashboard.html";
+    unlockAndGoToDashboard(email);
   } else {
     pinInfo.textContent = "Account created! Check your email to confirm it, then come back and enter your PIN to log in.";
     pinInfo.hidden = false;
@@ -215,15 +250,39 @@ async function doLogin(email, pin) {
     renderPinDots();
     return;
   }
+  unlockAndGoToDashboard(email);
+}
+
+// Clearing the lock and stamping activity keeps the dashboard from
+// immediately re-locking on arrival.
+function unlockAndGoToDashboard(email) {
   localStorage.setItem(EMAIL_KEY, email);
+  localStorage.removeItem(LOCK_KEY);
+  localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
   window.location.href = "dashboard.html";
 }
 
 // ---------- Init ----------
 (async function init() {
   const { data } = await sb.auth.getSession();
-  if (data.session && data.session.user) {
+  const isLocked = localStorage.getItem(LOCK_KEY) === "1";
+
+  // A live session goes straight through — unless the dashboard locked itself
+  // after being idle, in which case this page doubles as the lock screen.
+  if (data.session && data.session.user && !isLocked) {
     window.location.href = "dashboard.html";
+    return;
+  }
+
+  if (data.session && data.session.user && isLocked) {
+    pendingEmail = localStorage.getItem(EMAIL_KEY) || data.session.user.email;
+    mode = "login";
+    cameFromRememberedEmail = true;
+    document.getElementById("auth-subtitle").textContent = "Locked — enter your PIN to unlock";
+    pinHeading.textContent = "🔒 Locked";
+    pinSubheading.textContent = pendingEmail;
+    showStep("pin");
+    renderPinDots();
     return;
   }
 

@@ -62,9 +62,41 @@ function toDateStr(d) {
 
 // ---------- Auth guard ----------
 document.getElementById("logout-btn").addEventListener("click", async () => {
+  localStorage.removeItem(LOCK_KEY);
   await sb.auth.signOut();
   window.location.href = "index.html";
 });
+
+// ---------- Idle auto-lock ----------
+// Locking keeps the Supabase session alive but sends the user back to the PIN
+// screen, so getting back in is one PIN entry rather than a full login.
+function markActivity() {
+  localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+}
+
+function lockNow() {
+  localStorage.setItem(LOCK_KEY, "1");
+  window.location.href = "index.html";
+}
+
+function checkIdle() {
+  const last = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0);
+  if (last && Date.now() - last > LOCK_AFTER_MS) lockNow();
+}
+
+for (const evt of ["pointerdown", "keydown", "scroll"]) {
+  document.addEventListener(evt, markActivity, { passive: true });
+}
+
+document.addEventListener("visibilitychange", () => {
+  // Stamp on the way out so time spent in another app counts as idle.
+  if (document.visibilityState === "visible") checkIdle();
+  else markActivity();
+});
+
+setInterval(checkIdle, 30000);
+
+document.getElementById("lock-btn").addEventListener("click", lockNow);
 
 sb.auth.onAuthStateChange((_event, session) => {
   if (!session || !session.user) {
@@ -902,6 +934,19 @@ document.getElementById("export-btn").addEventListener("click", async () => {
     window.location.href = "index.html";
     return;
   }
+  // Locked, or idle for too long since this tab was last used (e.g. the phone
+  // was put down and picked up an hour later) — bounce to the PIN screen.
+  if (localStorage.getItem(LOCK_KEY) === "1") {
+    window.location.href = "index.html";
+    return;
+  }
+  const last = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0);
+  if (last && Date.now() - last > LOCK_AFTER_MS) {
+    lockNow();
+    return;
+  }
+
+  markActivity();
   currentUser = data.session.user;
   startApp();
 })();

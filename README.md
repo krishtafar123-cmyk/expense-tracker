@@ -65,6 +65,24 @@ If you set this up before these features existed, run these once each in Supabas
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 
+## Allow the "Forgot PIN?" emails to work
+
+Supabase only sends people back to URLs you've allow-listed, so the reset link needs one setting:
+
+1. Supabase → **Authentication** → **URL Configuration**.
+2. Set **Site URL** to your live URL (e.g. `https://krishtafar123-cmyk-expense-tracker.vercel.app`).
+3. Under **Redirect URLs**, add the same URL with `/**` on the end:
+   `https://krishtafar123-cmyk-expense-tracker.vercel.app/**`
+4. Save.
+
+Without this, tapping the link in the reset email will bounce you to the wrong place and the new PIN can't be set. Note that Supabase's built-in email sender is rate-limited on the free tier (a handful per hour), which is fine for personal use.
+
+## Locking
+
+The dashboard locks itself after **15 minutes** of inactivity, and also if you reopen it having been away longer than that. Locking does *not* log you out — your session stays alive, so getting back in is just your PIN, not a full login. There's also a **Lock** button in the top bar to lock immediately.
+
+To change the timeout, edit `LOCK_AFTER_MS` in [shared.js](shared.js).
+
 ## Install it on your phone
 
 The app is a PWA, so it can live on your home screen and open fullscreen with no browser chrome:
@@ -96,5 +114,5 @@ A service worker caches the app shell, so the app opens instantly and still load
 - **"Failed to fetch" / nothing loads**: double check `config.js` has your real URL/key, not the placeholders.
 - **Can't log in after signup**: check step 4 — either disable email confirmation or click the link in your inbox.
 - **Data not showing on another device**: make sure you're logged into the same account (same email) on both.
-- **Forgot your PIN**: there's no reset flow built in yet. Go to Supabase → **Authentication → Users**, delete that user, and sign up again.
+- **Forgot your PIN**: tap **Forgot PIN?** on the PIN screen to get a reset link by email. If the link doesn't work, check the URL Configuration step above.
 - **Salary Payments or Savings tab errors out**: you likely haven't run the matching migration yet — see "Updates that need a one-time SQL migration" above.

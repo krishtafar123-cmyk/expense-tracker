@@ -132,6 +132,13 @@ input, select { font-family: inherit; }
   padding: 0;
 }
 
+.auth-toggle-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* ---------- PIN pad ---------- */
 .pin-heading {
   text-align: center;
