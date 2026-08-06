@@ -44,7 +44,13 @@ body {
   color: var(--text);
 }
 
-button { font-family: inherit; cursor: pointer; }
+button {
+  font-family: inherit;
+  cursor: pointer;
+  /* Opts out of double-tap-to-zoom, which is what makes taps feel delayed. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 input, select { font-family: inherit; }
 
 /* ---------- Auth screen ---------- */
@@ -155,7 +161,7 @@ input, select { font-family: inherit; }
   border-radius: 50%;
   border: 2px solid var(--border);
   background: transparent;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.08s linear, border-color 0.08s linear;
 }
 
 .pin-dot.filled {
@@ -178,9 +184,20 @@ input, select { font-family: inherit; }
   color: var(--text);
   font-size: 20px;
   font-weight: 600;
+  /* Stops a fast repeated tap from selecting the digit as text. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.pin-key:hover {
+/* Hover only where a real pointer exists — on touch it sticks after the tap. */
+@media (hover: hover) {
+  .pin-key:hover { border-color: var(--primary); }
+}
+
+/* Immediate visual confirmation on press, so entry feels responsive. */
+.pin-key:active {
+  background: var(--primary);
+  color: var(--on-primary);
   border-color: var(--primary);
 }
 

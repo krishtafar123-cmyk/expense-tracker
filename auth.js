@@ -99,18 +99,49 @@ function renderPinDots() {
   pinDots.forEach((dot, i) => dot.classList.toggle("filled", i < currentPin.length));
 }
 
-document.querySelectorAll(".pin-key[data-digit]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    if (currentPin.length >= PIN_LENGTH) return;
-    currentPin += btn.dataset.digit;
-    renderPinDots();
-    if (currentPin.length === PIN_LENGTH) handlePinComplete();
-  });
-});
+function pressDigit(digit) {
+  if (currentPin.length >= PIN_LENGTH) return;
+  currentPin += digit;
+  renderPinDots();
+  if (currentPin.length === PIN_LENGTH) handlePinComplete();
+}
 
-document.getElementById("pin-backspace").addEventListener("click", () => {
+function pressBackspace() {
   currentPin = currentPin.slice(0, -1);
   renderPinDots();
+}
+
+// Keys fire on pointerdown rather than click: mobile browsers hold a click
+// back by up to ~300ms while they wait to see if it's a double-tap-to-zoom,
+// which makes fast PIN entry feel laggy. Keyboard-generated clicks have
+// detail === 0, so handling those separately keeps the pad accessible
+// without any risk of a tap registering twice.
+function bindPinKey(el, action) {
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    action();
+  });
+  el.addEventListener("click", (e) => {
+    if (e.detail === 0) action();
+  });
+}
+
+document.querySelectorAll(".pin-key[data-digit]").forEach((btn) => {
+  bindPinKey(btn, () => pressDigit(btn.dataset.digit));
+});
+
+bindPinKey(document.getElementById("pin-backspace"), pressBackspace);
+
+// Let a physical keyboard drive the pad too (desktop, and phones with one).
+document.addEventListener("keydown", (e) => {
+  if (document.getElementById("step-pin").hidden) return;
+  if (e.key >= "0" && e.key <= "9") {
+    e.preventDefault();
+    pressDigit(e.key);
+  } else if (e.key === "Backspace") {
+    e.preventDefault();
+    pressBackspace();
+  }
 });
 
 document.getElementById("pin-back-btn").addEventListener("click", () => {
