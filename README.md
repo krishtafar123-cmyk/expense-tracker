@@ -38,20 +38,11 @@ By default Supabase makes new users click a confirmation link before they can lo
 
 If you skip this, just check your inbox after signing up and click the confirmation link before logging in.
 
-## 5. Allow a 4-digit PIN as your password
+## 5. Test it locally
 
-Login uses a 4-digit PIN instead of a full password, but Supabase requires passwords to be at least 6 characters by default. Lower that:
+Open `index.html` in a browser (double-click it, or right-click → Open with → your browser) — this is the login page. Create an account (email + a 6-digit PIN), then try adding a salary, a fixed expense, and a daily expense on the dashboard.
 
-1. **Authentication** → **Sign In / Providers** (or **Policies**, depending on your dashboard version) → find **Minimum password length**.
-2. Set it to `4`. Save.
-
-If you skip this, signing up or logging in with a 4-digit PIN will fail with "Password should be at least 6 characters."
-
-## 6. Test it locally
-
-Open `index.html` in a browser (double-click it, or right-click → Open with → your browser) — this is the login page. Create an account (email + a 4-digit PIN), then try adding a salary, a fixed expense, and a daily expense on the dashboard.
-
-## 7. Deploy to Vercel (so it has a real URL you can open from your phone)
+## 6. Deploy to Vercel (so it has a real URL you can open from your phone)
 
 1. Go to https://vercel.com and sign up / log in (you can use your GitHub account or email).
 2. Easiest path — no GitHub needed:
@@ -77,7 +68,6 @@ Open the resulting URL on your phone and log in with the same email + PIN — yo
 ## Troubleshooting
 
 - **"Failed to fetch" / nothing loads**: double check `config.js` has your real URL/key, not the placeholders.
-- **"Password should be at least 6 characters" on signup/login**: see step 5 — lower Supabase's minimum password length to 4.
 - **Can't log in after signup**: check step 4 — either disable email confirmation or click the link in your inbox.
 - **Data not showing on another device**: make sure you're logged into the same account (same email) on both.
 - **Forgot your PIN**: there's no reset flow built in yet. Go to Supabase → **Authentication → Users**, delete that user, and sign up again.

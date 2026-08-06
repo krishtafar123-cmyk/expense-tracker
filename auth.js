@@ -1,7 +1,7 @@
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
 const EMAIL_KEY = "expensetracker_email";
-const PIN_LENGTH = 4;
+const PIN_LENGTH = 6;
 
 let mode = "login"; // "login" | "signup" — which action a completed PIN triggers
 let pendingEmail = "";
@@ -86,7 +86,7 @@ function enterPinStep() {
   renderPinDots();
 
   if (mode === "signup") {
-    pinHeading.textContent = "Choose a 4-digit PIN";
+    pinHeading.textContent = "Choose a 6-digit PIN";
     pinSubheading.textContent = pendingEmail;
   } else {
     pinHeading.textContent = "Enter your PIN";
@@ -140,7 +140,7 @@ async function handlePinComplete() {
       currentPin = "";
       firstPin = null;
       pinStage = "enter";
-      pinHeading.textContent = "Choose a 4-digit PIN";
+      pinHeading.textContent = "Choose a 6-digit PIN";
       renderPinDots();
       return;
     }
@@ -158,7 +158,7 @@ async function doSignUp(email, pin) {
     currentPin = "";
     firstPin = null;
     pinStage = "enter";
-    pinHeading.textContent = "Choose a 4-digit PIN";
+    pinHeading.textContent = "Choose a 6-digit PIN";
     renderPinDots();
     return;
   }
