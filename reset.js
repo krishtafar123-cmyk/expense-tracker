@@ -25,6 +25,8 @@ function showStep(step) {
 }
 
 function renderPinDots() {
+  const progress = document.getElementById("pin-progress");
+  if (progress) progress.textContent = currentPin.length + " of " + PIN_LENGTH + " digits entered";
   pinDots.forEach((dot, i) => dot.classList.toggle("filled", i < currentPin.length));
 }
 

@@ -34,7 +34,7 @@
         <p class="pin-heading" id="pin-heading">Choose a 6-digit PIN</p>
         <p class="pin-subheading" id="pin-subheading"></p>
 
-        <div class="pin-dots" id="pin-dots">
+        <div class="pin-dots" id="pin-dots" aria-hidden="true">
           <span class="pin-dot"></span>
           <span class="pin-dot"></span>
           <span class="pin-dot"></span>
@@ -42,9 +42,10 @@
           <span class="pin-dot"></span>
           <span class="pin-dot"></span>
         </div>
+        <p id="pin-progress" class="sr-only" role="status" aria-live="polite"></p>
 
-        <div id="pin-error" class="auth-error" hidden></div>
-        <p id="pin-info" class="auth-info" hidden></p>
+        <div id="pin-error" class="auth-error" role="alert" hidden></div>
+        <p id="pin-info" class="auth-info" role="status" aria-live="polite" hidden></p>
 
         <div class="pin-pad">
           <button class="pin-key" data-digit="1">1</button>

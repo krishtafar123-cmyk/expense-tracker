@@ -139,6 +139,7 @@ let hasLoadedOnce = false;
 
 function setLoading(on) {
   document.getElementById("loading-bar").hidden = !on;
+  document.querySelector(".content").setAttribute("aria-busy", on ? "true" : "false");
 }
 
 function showLoadError(message) {
@@ -313,7 +314,7 @@ function renderFixedList() {
     li.innerHTML = `
       <div class="item-main"><span class="item-title">${escapeHtml(f.name)}</span></div>
       <span class="item-amount">${fmt(f.amount)}</span>
-      ${rowActions()}
+      ${rowActions(f.name + ", " + fmt(f.amount))}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteFixedExpense(f.id));
     attachEdit(li, f, [
@@ -364,11 +365,20 @@ document.getElementById("copy-prev-btn").addEventListener("click", async () => {
 // Shared by every list. Swaps a row into a small form in place; on save it
 // patches the row and reloads the month, which keeps lists and totals correct
 // even when an edit moves an entry into a different month.
-function rowActions() {
+// escapeHtml leaves quotes alone, which is fine for text nodes but would break
+// out of an attribute — so attribute values get the extra pass.
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, "&quot;");
+}
+
+// `description` names the row, so a screen reader announces "Delete Rent"
+// rather than eight identical "Delete" buttons.
+function rowActions(description) {
+  const label = escapeAttr(description || "entry");
   return `
     <span class="item-actions">
-      <button class="edit-btn" aria-label="Edit" title="Edit">✎</button>
-      <button class="delete-btn" aria-label="Delete" title="Delete">✕</button>
+      <button class="edit-btn" aria-label="Edit ${label}" title="Edit">✎</button>
+      <button class="delete-btn" aria-label="Delete ${label}" title="Delete">✕</button>
     </span>
   `;
 }
@@ -503,7 +513,7 @@ function renderSalaryList() {
         ${p.note ? `<span class="item-sub">${escapeHtml(p.note)}</span>` : ""}
       </div>
       <span class="item-amount">${fmt(p.amount)}</span>
-      ${rowActions()}
+      ${rowActions("salary payment of " + fmt(p.amount) + " on " + dateLabel)}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteSalaryPayment(p.id));
     attachEdit(li, p, [
@@ -581,7 +591,7 @@ function renderSavingsList() {
         ${t.note ? `<span class="item-sub">${escapeHtml(t.note)}</span>` : ""}
       </div>
       <span class="item-amount">${t.type === "withdrawal" ? "-" : ""}${fmt(t.amount)}</span>
-      ${rowActions()}
+      ${rowActions("savings, " + label.toLowerCase() + " " + fmt(t.amount) + " on " + dateLabel)}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteSavingsTransaction(t.id));
     attachEdit(li, t, [
@@ -686,7 +696,7 @@ function renderDailyList() {
         <span class="item-sub">${dateLabel}${d.note ? " · " + escapeHtml(d.note) : ""}</span>
       </div>
       <span class="item-amount">${fmt(d.amount)}</span>
-      ${rowActions()}
+      ${rowActions(d.category + " " + fmt(d.amount) + " on " + dateLabel)}
     `;
     li.querySelector(".delete-btn").addEventListener("click", () => deleteDailyExpense(d.id));
     attachEdit(li, d, [
@@ -794,11 +804,18 @@ function renderTrend() {
     `;
   });
 
+  // The <title> tooltips only surface on hover, so the chart also gets a
+  // plain-text equivalent for screen readers (and anyone not using a mouse).
+  const readout = months
+    .map((m) => `<li>${m.label}: income ${fmt(m.income)}, spending ${fmt(m.spending)}</li>`)
+    .join("");
+
   chart.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Income versus spending for the last ${months.length} months">
       <line class="trend-axis" x1="0" y1="${top + plot}" x2="${W}" y2="${top + plot}" />
       ${bars}
     </svg>
+    <ul class="sr-only">${readout}</ul>
   `;
 }
 
@@ -860,12 +877,15 @@ function renderBudgets() {
     li.innerHTML = `
       <div class="budget-head">
         <span class="budget-name">${escapeHtml(cat)}</span>
-        <span class="budget-figures ${over ? "negative" : ""}">${fmt(used)}${budget > 0 ? " / " + fmt(budget) : ""}</span>
+        <span class="budget-figures ${over ? "negative" : ""}">${fmt(used)}${budget > 0 ? " / " + fmt(budget) : ""}${
+          over ? '<span class="sr-only"> — over budget</span>'
+               : near ? '<span class="sr-only"> — close to the limit</span>' : ""
+        }</span>
         <input class="budget-input" type="number" inputmode="decimal" step="0.01" min="0"
-               placeholder="No limit" aria-label="${escapeHtml(cat)} monthly budget"
+               placeholder="No limit" aria-label="${escapeAttr(cat)} monthly budget"
                value="${budget > 0 ? budget : ""}" />
       </div>
-      ${budget > 0 ? `<div class="budget-track"><div class="budget-fill ${over ? "is-over" : near ? "is-near" : ""}" style="width:${pct}%"></div></div>` : ""}
+      ${budget > 0 ? `<div class="budget-track" aria-hidden="true"><div class="budget-fill ${over ? "is-over" : near ? "is-near" : ""}" style="width:${pct}%"></div></div>` : ""}
     `;
 
     const input = li.querySelector(".budget-input");

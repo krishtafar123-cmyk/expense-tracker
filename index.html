@@ -19,7 +19,7 @@
     <div class="auth-card">
 
       <div class="greeting">
-        <div class="greeting-emoji" id="greeting-emoji">👋</div>
+        <div class="greeting-emoji" id="greeting-emoji" aria-hidden="true">👋</div>
         <h1 id="greeting-text">Hello</h1>
         <p class="auth-subtitle" id="auth-subtitle">Log in to Expense Tracker</p>
       </div>
@@ -30,7 +30,7 @@
           Email
           <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email" />
         </label>
-        <div id="email-error" class="auth-error" hidden></div>
+        <div id="email-error" class="auth-error" role="alert" hidden></div>
         <button id="email-continue-btn" class="btn btn-primary btn-block">Continue</button>
         <p class="auth-toggle">
           <span id="email-toggle-text">Don't have an account?</span>
@@ -43,7 +43,7 @@
         <p class="pin-heading" id="pin-heading">Enter your PIN</p>
         <p class="pin-subheading" id="pin-subheading"></p>
 
-        <div class="pin-dots" id="pin-dots">
+        <div class="pin-dots" id="pin-dots" aria-hidden="true">
           <span class="pin-dot" data-i="0"></span>
           <span class="pin-dot" data-i="1"></span>
           <span class="pin-dot" data-i="2"></span>
@@ -51,9 +51,10 @@
           <span class="pin-dot" data-i="4"></span>
           <span class="pin-dot" data-i="5"></span>
         </div>
+        <p id="pin-progress" class="sr-only" role="status" aria-live="polite"></p>
 
-        <div id="pin-error" class="auth-error" hidden></div>
-        <p id="pin-info" class="auth-info" hidden></p>
+        <div id="pin-error" class="auth-error" role="alert" hidden></div>
+        <p id="pin-info" class="auth-info" role="status" aria-live="polite" hidden></p>
 
         <div class="pin-pad">
           <button class="pin-key" data-digit="1">1</button>

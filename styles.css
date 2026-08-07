@@ -2,7 +2,9 @@
   --bg: #f7f8f4;
   --card-bg: #ffffff;
   --text: #232a24;
-  --text-muted: #6f7a6f;
+  /* Darkened from #6f7a6f, which only reached ~4.2:1 on the page background
+     and ~4.5:1 on cards — under WCAG AA for text this size. */
+  --text-muted: #5f6a5f;
   --border: #e2e8de;
   --primary: #5d7d5f;
   --primary-hover: #4c684e;
@@ -10,8 +12,9 @@
   /* Text/icons sitting on top of --primary. */
   --on-primary: #ffffff;
   --on-primary-muted: rgba(255,255,255,0.85);
-  --green: #3f8a4c;
-  --red: #c05a4e;
+  --green: #2f7a3c;
+  /* Darkened from #c05a4e (~4.4:1 on white) to clear AA. */
+  --red: #b0473c;
   /* Chart series need distinct hues, not two shades of the same green. */
   --chart-income: #5d7d5f;
   --chart-spending: #c08155;
@@ -41,6 +44,27 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Visible to screen readers only — used for status text that the visual
+   design conveys through colour or shape instead. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard focus needs to be obvious; :focus-visible keeps it from showing
+   on mouse/touch presses. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 body {
   margin: 0;
@@ -318,6 +342,27 @@ input, select { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .loading-bar { animation: none; background: var(--primary); }
+}
+
+/* Dim the data while a load is in flight, so stale numbers don't read as
+   current. Kept subtle rather than a full skeleton — the load is usually
+   fast enough that swapping the layout out would flash. */
+.content[aria-busy="true"] .summary-grid,
+.content[aria-busy="true"] .columns,
+.content[aria-busy="true"] .insights-card {
+  opacity: 0.5;
+}
+
+.content .summary-grid,
+.content .columns,
+.content .insights-card {
+  transition: opacity 0.15s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content .summary-grid,
+  .content .columns,
+  .content .insights-card { transition: none; }
 }
 
 .load-error:not([hidden]) { display: flex; }
