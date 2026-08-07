@@ -1,5 +1,7 @@
 # Expense Tracker — Setup Guide
 
+> Planning changes or picking this up after a break? See [ROADMAP.md](ROADMAP.md) for where things stand, ideas not built yet, and the gotchas that caused real bugs.
+
 A small web app to track your salary, fixed expenses, family maintenance, and daily spending, synced across every device via Supabase (free hosted Postgres + auth) and deployed on Vercel (free static hosting).
 
 No coding needed for setup — just account creation and copy/pasting keys, which you should do yourself in your own browser.
