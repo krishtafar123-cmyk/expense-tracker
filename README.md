@@ -65,6 +65,7 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_salary_payments.sql](migration_salary_payments.sql) — adds dated Salary Payments (for fortnightly/irregular pay), replacing the old single monthly salary figure.
 - [migration_savings.sql](migration_savings.sql) — adds the Savings tab (deposits/withdrawals with a running balance).
 - [migration_category_budgets.sql](migration_category_budgets.sql) — adds per-category monthly budgets.
+- [migration_reimbursements.sql](migration_reimbursements.sql) — adds the Work Purchases and Lent to Roommate reminders.
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 
@@ -104,6 +105,7 @@ A service worker caches the app shell, so the app opens instantly and still load
 - **Monthly Setup** (family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
 - **Daily Expenses** default to today's date, so logging is just category + amount. Use **Change** on the date line to back-date something you forgot. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
 - **Editing**: every row in every list has a ✎ button that swaps it into an inline form. Saving reloads the month, so totals stay correct even if you move an entry to a different date.
+- **Work Purchases** and **Lent to Roommate**: money you laid out that someone owes back to you. **Neither counts as your spending** — they're stored in a separate table so they can never reach Remaining, the trend chart, budgets or any insight. They're also not tied to a month: something bought in June still shows as outstanding in August, because you still haven't been paid back. Press **✓** to mark an item cleared once you get the money (it records the date and greys the row out); **↺** reopens it if you marked it too early. Outstanding totals also appear in Insights so they don't get forgotten.
 - **Savings**: dated deposits and withdrawals, showing an all-time running balance plus this month's activity.
   - **Deposit** = money moved *into* savings. Balance goes up, **Remaining** goes down (it's no longer available to spend).
   - **Withdrawal** = money taken *back out* of savings to spend. Balance goes down, **Remaining** goes up.
