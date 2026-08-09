@@ -1,45 +1,61 @@
+/* Light orange "glass" theme. Cards are translucent and blurred over a warm
+   gradient. Translucency is kept high enough (0.72 / 0.10) that text still
+   composites onto a near-solid surface — a more see-through card looks nicer
+   in a screenshot but drops text contrast below WCAG AA over the darker parts
+   of the gradient. */
 :root {
-  --bg: #f7f8f4;
-  --card-bg: #ffffff;
-  --text: #232a24;
-  /* Darkened from #6f7a6f, which only reached ~4.2:1 on the page background
-     and ~4.5:1 on cards — under WCAG AA for text this size. */
-  --text-muted: #5f6a5f;
-  --border: #e2e8de;
-  --primary: #5d7d5f;
-  --primary-hover: #4c684e;
-  --accent: #93b088;
+  --bg: #ffeedd;
+  --bg-grad-1: #ffe3c7;
+  --bg-grad-2: #ffd2ab;
+  --bg-grad-3: #fff5ea;
+  --card-bg: rgba(255, 255, 255, 0.72);
+  /* Opaque stand-in for anything that must not go translucent. */
+  --card-solid: #fff7ef;
+  --text: #3b2617;
+  --text-muted: #6b5140;
+  --border: rgba(255, 255, 255, 0.75);
+  --border-strong: rgba(180, 120, 70, 0.22);
+  --primary: #b4530c;
+  --primary-hover: #97440a;
+  --accent: #f5a04a;
   /* Text/icons sitting on top of --primary. */
   --on-primary: #ffffff;
-  --on-primary-muted: rgba(255,255,255,0.85);
+  --on-primary-muted: rgba(255,255,255,0.88);
   --green: #2f7a3c;
-  /* Darkened from #c05a4e (~4.4:1 on white) to clear AA. */
   --red: #b0473c;
-  /* Chart series need distinct hues, not two shades of the same green. */
-  --chart-income: #5d7d5f;
-  --chart-spending: #c08155;
-  --shadow: 0 4px 14px rgba(60,80,60,0.08);
+  /* Chart series need distinct hues, not two shades of the same orange. */
+  --chart-income: #2f7a3c;
+  --chart-spending: #c9611a;
+  --input-bg: rgba(255, 255, 255, 0.62);
+  --shadow: 0 8px 26px rgba(150, 85, 30, 0.14);
   --radius: 18px;
+  --glass-blur: blur(14px) saturate(150%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #191d19;
-    --card-bg: #232823;
-    --text: #e9eee8;
-    --text-muted: #99a598;
-    --border: #333b33;
-    --primary: #8fb891;
-    --primary-hover: #a6c9a7;
-    --accent: #b3cba8;
+    --bg: #201711;
+    --bg-grad-1: #2a1d13;
+    --bg-grad-2: #1a1209;
+    --bg-grad-3: #241a12;
+    --card-bg: rgba(255, 244, 232, 0.10);
+    --card-solid: #2a2018;
+    --text: #f7ece1;
+    --text-muted: #c4ac96;
+    --border: rgba(255, 226, 198, 0.16);
+    --border-strong: rgba(255, 226, 198, 0.26);
+    --primary: #ff9d55;
+    --primary-hover: #ffb478;
+    --accent: #ffc48a;
     /* Primary is light in dark mode, so what sits on it must be dark. */
-    --on-primary: #16201a;
-    --on-primary-muted: rgba(22,32,26,0.75);
+    --on-primary: #2a1408;
+    --on-primary-muted: rgba(42,20,8,0.78);
     --green: #7bbf85;
-    --red: #e08279;
-    --chart-income: #8fb891;
-    --chart-spending: #d69b70;
-    --shadow: 0 4px 14px rgba(0,0,0,0.35);
+    --red: #f08b7f;
+    --chart-income: #7bbf85;
+    --chart-spending: #ff9d55;
+    --input-bg: rgba(255, 244, 232, 0.08);
+    --shadow: 0 8px 26px rgba(0,0,0,0.45);
   }
 }
 
@@ -69,8 +85,58 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
   color: var(--text);
+  background-color: var(--bg);
+  /* Soft blobs give the frosted cards something to actually refract. Fixed so
+     the backdrop doesn't slide under the cards while scrolling. */
+  background-image:
+    radial-gradient(60rem 40rem at 12% -8%, var(--bg-grad-1), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 4%, var(--bg-grad-2), transparent 62%),
+    radial-gradient(70rem 50rem at 50% 108%, var(--bg-grad-3), transparent 65%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+/* ---------- Glass surfaces ---------- */
+.card,
+.summary-card,
+.auth-card,
+.topbar,
+.copy-prompt,
+.load-error,
+.savings-balance,
+.owed-banner {
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+}
+
+/* Without backdrop-filter the cards would read as flat washed-out panels, so
+   fall back to an opaque surface instead. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .card,
+  .summary-card,
+  .auth-card,
+  .topbar,
+  .copy-prompt,
+  .load-error,
+  .savings-balance,
+  .owed-banner {
+    background: var(--card-solid);
+  }
+}
+
+/* Translucent fills need a defined edge, or fields disappear into the card. */
+.field input,
+.daily-form input,
+.daily-form select,
+.inline-form input,
+.edit-form input,
+.edit-form select,
+.budget-input,
+.date-auto {
+  border: 1px solid var(--border-strong);
 }
 
 button {
@@ -216,7 +282,7 @@ input, select { font-family: inherit; }
   aspect-ratio: 1;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 20px;
   font-weight: 600;
@@ -532,7 +598,7 @@ input, select { font-family: inherit; }
   padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 13px;
 }
@@ -540,7 +606,7 @@ input, select { font-family: inherit; }
 .budget-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--bg);
+  background: var(--input-bg);
   overflow: hidden;
   margin-top: 8px;
 }
@@ -581,7 +647,7 @@ input, select { font-family: inherit; }
 }
 
 .savings-balance {
-  background: var(--bg);
+  background: var(--input-bg);
   border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 16px;
@@ -600,6 +666,38 @@ input, select { font-family: inherit; }
   margin: 0 0 16px;
 }
 
+/* ---------- Money owed back to you ---------- */
+.owed-banner {
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.owed-form input[id$="-desc"] { grid-column: 1 / -1; }
+
+/* Repaid items stay visible as a record, but recede so the outstanding ones
+   read first. */
+.item-list li.is-settled .item-title,
+.item-list li.is-settled .item-amount {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.item-list li.is-settled .item-sub {
+  color: var(--green);
+}
+
+.settle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 8px;
+}
+.settle-btn:hover { color: var(--green); }
+
 .field {
   display: block;
   font-size: 13px;
@@ -614,7 +712,7 @@ input, select { font-family: inherit; }
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
 }
@@ -682,7 +780,7 @@ input, select { font-family: inherit; }
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
 }
@@ -712,7 +810,7 @@ input, select { font-family: inherit; }
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
 }
@@ -727,7 +825,7 @@ input, select { font-family: inherit; }
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
   width: 100%;
@@ -746,7 +844,7 @@ input, select { font-family: inherit; }
   padding: 9px 12px;
   border: 1px dashed var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--input-bg);
   font-size: 14px;
 }
 
@@ -768,7 +866,7 @@ input, select { font-family: inherit; }
   flex: 1;
   height: 8px;
   border-radius: 4px;
-  background: var(--bg);
+  background: var(--input-bg);
   overflow: hidden;
 }
 .cat-row .cat-bar-fill {

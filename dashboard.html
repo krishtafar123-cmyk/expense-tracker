@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Expense Tracker</title>
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#f7f8f4" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#191d19" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffeedd" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#201711" media="(prefers-color-scheme: dark)" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Expenses" />
 <link rel="apple-touch-icon" href="icon-192.png" />
@@ -116,10 +116,10 @@
           <h3 class="subheading">Fixed Expenses</h3>
           <ul id="fixed-list" class="item-list"></ul>
 
-          <form id="fixed-form" class="inline-form">
+          <form id="fixed-form" class="daily-form">
             <input type="text" id="fixed-name" aria-label="Fixed expense name" placeholder="Name (e.g. Rent)" required />
             <input type="number" inputmode="decimal" id="fixed-amount" aria-label="Fixed expense amount" placeholder="Amount" step="0.01" min="0" required />
-            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="submit" class="btn btn-primary">Add fixed expense</button>
           </form>
         </section>
 
@@ -157,6 +157,44 @@
           <p class="card-hint">A monthly cap per category. Leave blank for no limit — bars show what you've spent this month.</p>
           <button type="button" id="suggest-budgets-btn" class="btn btn-secondary btn-block">Suggest from my history</button>
           <ul id="budget-list" class="budget-list"></ul>
+        </section>
+
+        <section class="card">
+          <h2><span aria-hidden="true">🧾</span> Work Purchases</h2>
+          <p class="card-hint">Things you bought for work with your own money. <strong>Not counted as your spending</strong> — this is a reminder of what to claim back from your manager.</p>
+
+          <div class="owed-banner">
+            <div class="summary-label">Not cleared yet</div>
+            <div class="savings-balance-value" id="work-outstanding">$0</div>
+          </div>
+
+          <ul id="work-list" class="item-list"></ul>
+
+          <form id="work-form" class="daily-form owed-form">
+            <input type="date" id="work-date" aria-label="Purchase date" required />
+            <input type="number" inputmode="decimal" id="work-amount" aria-label="Amount you paid" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="work-desc" aria-label="What you bought" placeholder="What did you buy?" required />
+            <button type="submit" class="btn btn-primary">Add purchase</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2><span aria-hidden="true">🤝</span> Lent to Roommate</h2>
+          <p class="card-hint">Money you gave your roommate. <strong>Not counted as your spending</strong> — this is a reminder of what's owed back to you.</p>
+
+          <div class="owed-banner">
+            <div class="summary-label">Not cleared yet</div>
+            <div class="savings-balance-value" id="roommate-outstanding">$0</div>
+          </div>
+
+          <ul id="roommate-list" class="item-list"></ul>
+
+          <form id="roommate-form" class="daily-form owed-form">
+            <input type="date" id="roommate-date" aria-label="Date you gave the money" required />
+            <input type="number" inputmode="decimal" id="roommate-amount" aria-label="Amount you gave" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="roommate-desc" aria-label="What it was for" placeholder="What was it for?" required />
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
         </section>
 
         <section class="card">

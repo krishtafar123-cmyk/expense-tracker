@@ -62,6 +62,21 @@ create table if not exists category_budgets (
 );
 
 create index if not exists idx_category_budgets_user on category_budgets(user_id);
+-- Money you laid out that someone owes back to you. Kept apart from
+-- daily_expenses on purpose: it must never count as your own spending.
+create table if not exists reimbursements (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  owed_by text not null check (owed_by in ('work', 'roommate')),
+  description text not null,
+  amount numeric not null default 0,
+  settled boolean not null default false,
+  settled_on date,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_reimbursements_user on reimbursements(user_id, owed_by, settled, date);
 create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
 create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
 create index if not exists idx_salary_payments_date on salary_payments(user_id, date);
@@ -73,6 +88,7 @@ alter table daily_expenses enable row level security;
 alter table salary_payments enable row level security;
 alter table savings_transactions enable row level security;
 alter table category_budgets enable row level security;
+alter table reimbursements enable row level security;
 
 drop policy if exists "own monthly_data" on monthly_data;
 create policy "own monthly_data" on monthly_data
@@ -96,4 +112,8 @@ create policy "own savings_transactions" on savings_transactions
 
 drop policy if exists "own category_budgets" on category_budgets;
 create policy "own category_budgets" on category_budgets
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own reimbursements" on reimbursements;
+create policy "own reimbursements" on reimbursements
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

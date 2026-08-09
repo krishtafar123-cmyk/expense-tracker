@@ -42,6 +42,10 @@ let prevMonthDailyExpenses = [];
 let savingsTransactions = []; // all-time, for the running balance
 let categoryBudgets = [];
 let budgetsUnavailable = false;
+// Money owed back to you. All-time and not month-scoped: a purchase from two
+// months ago still needs claiming today, so it has to stay visible.
+let reimbursements = [];
+let reimbursementsUnavailable = false;
 
 // How many months the trend chart covers, including the current one.
 const TREND_MONTHS = 6;
@@ -121,6 +125,8 @@ function startApp() {
   resetDailyDateToToday();
   document.getElementById("salary-date").value = toDateStr(new Date());
   document.getElementById("savings-date").value = toDateStr(new Date());
+  document.getElementById("work-date").value = toDateStr(new Date());
+  document.getElementById("roommate-date").value = toDateStr(new Date());
   loadMonth();
 }
 
@@ -188,9 +194,10 @@ async function loadMonth() {
         .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false }),
       sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
       sb.from("category_budgets").select("*").eq("user_id", currentUser.id),
+      sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
     ]);
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes] = results;
 
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
@@ -209,6 +216,12 @@ async function loadMonth() {
     budgetsUnavailable = !!budgetRes.error;
     if (budgetRes.error) console.error(budgetRes.error);
     categoryBudgets = budgetRes.data || [];
+
+    // Same reasoning for reimbursements — they're reminders, never part of a
+    // total, so a missing table degrades to an empty list.
+    reimbursementsUnavailable = !!owedRes.error;
+    if (owedRes.error) console.error(owedRes.error);
+    reimbursements = owedRes.data || [];
 
     const curStart = toDateStr(currentMonth);
     const prevStart = toDateStr(prevMonth);
@@ -230,6 +243,7 @@ async function loadMonth() {
     renderDailyList();
     renderCategoryBreakdown();
     renderBudgets();
+    renderOwed();
     renderTrend();
     renderSummary();
   } catch (err) {
@@ -641,6 +655,141 @@ document.getElementById("daily-date-change").addEventListener("click", () => {
 });
 
 document.getElementById("daily-date").addEventListener("change", setDailyDateLabel);
+
+// ---------- Money owed back to you ----------
+// Work purchases and money lent to a roommate. These are reminders, never
+// spending: nothing here feeds Remaining, the trend chart, category budgets or
+// any insight about what you've spent.
+const OWED_KINDS = {
+  work: { list: "work-list", total: "work-outstanding", form: "work-form", noun: "purchase" },
+  roommate: { list: "roommate-list", total: "roommate-outstanding", form: "roommate-form", noun: "loan" },
+};
+
+function owedItems(kind) {
+  return reimbursements.filter((r) => r.owed_by === kind);
+}
+
+function owedOutstanding(kind) {
+  return owedItems(kind)
+    .filter((r) => !r.settled)
+    .reduce((sum, r) => sum + Number(r.amount), 0);
+}
+
+function renderOwed() {
+  for (const kind of Object.keys(OWED_KINDS)) renderOwedList(kind);
+}
+
+function renderOwedList(kind) {
+  const cfg = OWED_KINDS[kind];
+  document.getElementById(cfg.total).textContent = fmt(owedOutstanding(kind));
+
+  const ul = document.getElementById(cfg.list);
+  ul.innerHTML = "";
+
+  if (reimbursementsUnavailable) {
+    ul.innerHTML = '<li class="empty-state">Run <code>migration_reimbursements.sql</code> in Supabase to switch this on.</li>';
+    return;
+  }
+
+  const items = owedItems(kind);
+  if (items.length === 0) {
+    ul.innerHTML = '<li class="empty-state">Nothing recorded yet.</li>';
+    return;
+  }
+
+  // Outstanding first — the whole point is seeing what you're still owed.
+  const sorted = [...items].sort((a, b) => {
+    if (a.settled !== b.settled) return a.settled ? 1 : -1;
+    return a.date < b.date ? 1 : -1;
+  });
+
+  for (const r of sorted) {
+    const li = document.createElement("li");
+    if (r.settled) li.classList.add("is-settled");
+    const dateLabel = new Date(r.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    const describe = r.description + ", " + fmt(r.amount) + " on " + dateLabel;
+    const clearedLabel = r.settled_on
+      ? " · cleared " + new Date(r.settled_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+      : (r.settled ? " · cleared" : "");
+
+    li.innerHTML = `
+      <div class="item-main">
+        <span class="item-title">${escapeHtml(r.description)}</span>
+        <span class="item-sub">${dateLabel}${clearedLabel}</span>
+      </div>
+      <span class="item-amount">${fmt(r.amount)}</span>
+      <span class="item-actions">
+        <button class="settle-btn" aria-label="${escapeAttr((r.settled ? "Reopen, not actually cleared: " : "Mark as cleared: ") + describe)}"
+                title="${r.settled ? "Reopen — not cleared after all" : "Mark as cleared"}">${r.settled ? "↺" : "✓"}</button>
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+      </span>
+    `;
+
+    li.querySelector(".settle-btn").addEventListener("click", () => toggleOwedSettled(r));
+    li.querySelector(".delete-btn").addEventListener("click", () => deleteOwed(r.id));
+    attachEdit(li, r, [
+      { key: "date", type: "date", required: true },
+      { key: "description", type: "text", required: true },
+      { key: "amount", type: "number", required: true },
+    ], "reimbursements", () => renderOwedList(kind));
+
+    ul.appendChild(li);
+  }
+}
+
+async function toggleOwedSettled(item) {
+  const next = !item.settled;
+  // Record when it cleared, so the history shows how long you waited.
+  const patch = { settled: next, settled_on: next ? toDateStr(new Date()) : null };
+  const { error } = await sb.from("reimbursements").update(patch).eq("id", item.id);
+  if (error) { console.error(error); toast("Failed to update"); return; }
+  item.settled = patch.settled;
+  item.settled_on = patch.settled_on;
+  renderOwedList(item.owed_by);
+  renderInsights();
+  toast(next ? "Cleared" : "Reopened — still owed");
+}
+
+async function deleteOwed(id) {
+  const { error } = await sb.from("reimbursements").delete().eq("id", id);
+  if (error) { console.error(error); toast("Failed to delete"); return; }
+  const removed = reimbursements.find((r) => r.id === id);
+  reimbursements = reimbursements.filter((r) => r.id !== id);
+  if (removed) renderOwedList(removed.owed_by);
+  renderInsights();
+}
+
+function wireOwedForm(kind) {
+  const cfg = OWED_KINDS[kind];
+  onSubmitLocked(cfg.form, async () => {
+    const dateEl = document.getElementById(kind + "-date");
+    const amountEl = document.getElementById(kind + "-amount");
+    const descEl = document.getElementById(kind + "-desc");
+    const amount = parseFloat(amountEl.value);
+    const description = descEl.value.trim();
+    if (!dateEl.value || isNaN(amount) || !description) return;
+
+    const { data, error } = await sb.from("reimbursements")
+      .insert({ user_id: currentUser.id, date: dateEl.value, owed_by: kind, description, amount, settled: false })
+      .select().single();
+    if (error) {
+      console.error(error);
+      toast(reimbursementsUnavailable ? "Run the reimbursements migration first" : "Failed to add");
+      return;
+    }
+
+    reimbursements.unshift(data);
+    amountEl.value = "";
+    descEl.value = "";
+    dateEl.value = toDateStr(new Date());
+    renderOwedList(kind);
+    renderInsights();
+    toast("Saved as a reminder — not counted as spending");
+  });
+}
+
+for (const kind of Object.keys(OWED_KINDS)) wireOwedForm(kind);
 
 // ---------- Daily expenses ----------
 onSubmitLocked("daily-form", async () => {
@@ -1163,7 +1312,28 @@ function generateInsights() {
     }
   }
 
-  return insights.slice(0, 4);
+  // 6. Money still owed back to you. Ranked near the top because it's the one
+  // thing here that needs an action from someone else, and it's easy to forget.
+  const owedWork = owedOutstanding("work");
+  const owedRoommate = owedOutstanding("roommate");
+  if (owedWork > 0) {
+    const count = owedItems("work").filter((r) => !r.settled).length;
+    insights.unshift({
+      tone: "info",
+      icon: "🧾",
+      text: `${fmt(owedWork)} of work purchases still to claim back (${count} item${count === 1 ? "" : "s"}).`,
+    });
+  }
+  if (owedRoommate > 0) {
+    const count = owedItems("roommate").filter((r) => !r.settled).length;
+    insights.unshift({
+      tone: "info",
+      icon: "🤝",
+      text: `Your roommate still owes you ${fmt(owedRoommate)} across ${count} item${count === 1 ? "" : "s"}.`,
+    });
+  }
+
+  return insights.slice(0, 5);
 }
 
 // ---------- Today's spending (auto-resets at midnight since it's date-filtered) ----------
