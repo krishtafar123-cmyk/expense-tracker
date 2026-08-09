@@ -726,14 +726,25 @@ input, select { font-family: inherit; }
   overflow-y: auto;
 }
 
+/* A grid, not space-between flex. With three flex children the free space was
+   split around the amount, so amounts drifted horizontally according to how
+   long the name was and never lined up into a column. Fixed columns keep the
+   money right-aligned to the same edge on every row. */
 .item-list li {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--amount-col, 88px) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-height: 54px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
+}
+
+/* These aren't data rows, so they opt out of the column layout. */
+.item-list li.empty-state,
+.item-list li.editing {
+  display: block;
 }
 
 .item-list li:last-child { border-bottom: none; }
@@ -742,7 +753,17 @@ input, select { font-family: inherit; }
 .item-title { font-weight: 600; }
 .item-sub { font-size: 12px; color: var(--text-muted); }
 
-.item-amount { font-weight: 700; white-space: nowrap; }
+.item-amount {
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Narrow phones: give the name more room, since the money column and the
+   buttons are both fixed-width. */
+@media (max-width: 420px) {
+  .item-list li { --amount-col: 76px; gap: 6px; }
+}
 
 .item-actions {
   display: flex;
