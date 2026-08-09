@@ -11,6 +11,7 @@ Live at https://krishtafar123-cmyk-expense-tracker.vercel.app/, deployed from `m
 - **Reliability** — visible load errors with Retry, double-submit guards, CSV export of all data
 - **Insights** — 6-month income-vs-spending trend, per-category budgets with auto-suggest, rule-based observations
 - **Owed to you** — Work Purchases and Lent to Roommate reminders, cleared/reopened with the cleared date recorded
+- **Saving** — pay-cycle view derived from logged salary payments, pay-yourself-first target, safe-to-spend-today, three-payday month flagging
 - **Polish** — WCAG AA contrast in both themes, screen-reader labelling throughout, loading feedback
 - **Theme** — light orange glass (translucent blurred cards over a warm gradient), light and dark
 

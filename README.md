@@ -66,6 +66,7 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_savings.sql](migration_savings.sql) — adds the Savings tab (deposits/withdrawals with a running balance).
 - [migration_category_budgets.sql](migration_category_budgets.sql) — adds per-category monthly budgets.
 - [migration_reimbursements.sql](migration_reimbursements.sql) — adds the Work Purchases and Lent to Roommate reminders.
+- [migration_user_settings.sql](migration_user_settings.sql) — adds the "pay yourself first" savings target behind the safe-to-spend figure.
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 
@@ -102,6 +103,9 @@ A service worker caches the app shell, so the app opens instantly and still load
 - **Login flow**: the first time on a device, you enter your email once, then set (or enter) your PIN. From then on, that device remembers the email (in its browser storage) and only ever asks for the PIN — like a banking app's quick-unlock. A "‹ Back" link forgets the remembered email if you want to switch accounts on that device.
 - Under the hood, the PIN is just your Supabase account password — there's no separate PIN system, so an email is still required by Supabase itself; this app just hides that after the first login on each device.
 - **Salary Payments**: logged individually with a date (and optional note) rather than one monthly number, since fortnightly pay lands on different days each month. The month's total is just whatever payments actually landed in it.
+- **This pay period**: pay is fortnightly but budgets are monthly, and the two never line up. This card shows the current fortnight — what you were paid, what you've spent, what's left before the next payday, and **Safe to spend today**. The schedule isn't configured anywhere: it's derived from your logged salary payments, since any real payment date anchors the fortnight. Monthly fixed costs are charged to the cycle as a 14/days-in-month share rather than pretending a fortnight carries a whole month of rent, and the card says so.
+- **Pay yourself first**: set an amount to set aside each payday and it's reserved *before* anything counts as spendable, which is what makes saving stick. Money you've already moved to savings this cycle counts towards the target, so actually transferring it doesn't reduce your spendable figure a second time.
+- **Three-payday months**: fortnightly pay means 26 paydays a year, not 24, so exactly two months carry a third one. Budgeting as though every month has two makes that third pay a windfall — an insight flags it with the date so it doesn't quietly get absorbed.
 - **Monthly Setup** (family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
 - **Daily Expenses** default to today's date, so logging is just category + amount. Use **Change** on the date line to back-date something you forgot. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
 - **Editing**: every row in every list has a ✎ button that swaps it into an inline form. Saving reloads the month, so totals stay correct even if you move an entry to a different date.
