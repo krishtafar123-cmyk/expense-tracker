@@ -62,6 +62,13 @@ create table if not exists category_budgets (
 );
 
 create index if not exists idx_category_budgets_user on category_budgets(user_id);
+-- One row per user. A general settings home, not a single-purpose table.
+create table if not exists user_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  save_per_cycle numeric not null default 0,
+  updated_at timestamptz not null default now()
+);
+
 -- Money you laid out that someone owes back to you. Kept apart from
 -- daily_expenses on purpose: it must never count as your own spending.
 create table if not exists reimbursements (
@@ -89,6 +96,7 @@ alter table salary_payments enable row level security;
 alter table savings_transactions enable row level security;
 alter table category_budgets enable row level security;
 alter table reimbursements enable row level security;
+alter table user_settings enable row level security;
 
 drop policy if exists "own monthly_data" on monthly_data;
 create policy "own monthly_data" on monthly_data
@@ -112,6 +120,10 @@ create policy "own savings_transactions" on savings_transactions
 
 drop policy if exists "own category_budgets" on category_budgets;
 create policy "own category_budgets" on category_budgets
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own user_settings" on user_settings;
+create policy "own user_settings" on user_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "own reimbursements" on reimbursements;

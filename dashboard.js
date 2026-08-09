@@ -46,6 +46,9 @@ let budgetsUnavailable = false;
 // months ago still needs claiming today, so it has to stay visible.
 let reimbursements = [];
 let reimbursementsUnavailable = false;
+// "Pay yourself first" target, held aside before anything is called spendable.
+let savePerCycle = 0;
+let settingsUnavailable = false;
 
 // How many months the trend chart covers, including the current one.
 const TREND_MONTHS = 6;
@@ -195,9 +198,10 @@ async function loadMonth() {
       sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
       sb.from("category_budgets").select("*").eq("user_id", currentUser.id),
       sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
+      sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle(),
     ]);
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, settingsRes] = results;
 
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
@@ -222,6 +226,12 @@ async function loadMonth() {
     reimbursementsUnavailable = !!owedRes.error;
     if (owedRes.error) console.error(owedRes.error);
     reimbursements = owedRes.data || [];
+
+    // A missing settings table just means no savings target yet.
+    settingsUnavailable = !!settingsRes.error;
+    if (settingsRes.error) console.error(settingsRes.error);
+    savePerCycle = settingsRes.data ? Number(settingsRes.data.save_per_cycle) : 0;
+    document.getElementById("save-per-cycle").value = savePerCycle > 0 ? savePerCycle : "";
 
     const curStart = toDateStr(currentMonth);
     const prevStart = toDateStr(prevMonth);
@@ -731,7 +741,14 @@ function renderPayCycle() {
   const monthlyCommitments = family + fixedTotal;
   const share = monthlyCommitments * (PAY_INTERVAL_DAYS / daysInMonth(currentMonth));
 
-  const left = income - share - spent - savedNet;
+  // Pay yourself first: the target is reserved before anything counts as
+  // spendable. Money already moved to savings this cycle counts towards it —
+  // subtracting both the actual transfer and the full target would double-count
+  // it and understate what's genuinely available.
+  const alreadySaved = Math.max(0, savedNet);
+  const stillToSave = Math.max(0, savePerCycle - alreadySaved);
+  const left = income - share - spent - savedNet - stillToSave;
+
   const daysLeft = Math.max(0, Math.ceil((end - today) / 86400000));
   const perDay = daysLeft > 0 ? left / daysLeft : left;
 
@@ -752,11 +769,55 @@ function renderPayCycle() {
   perDayEl.textContent = fmt(Math.max(0, perDay));
   perDayEl.classList.toggle("negative", perDay <= 0);
 
+  // Headline: what's actually safe to spend today, savings already reserved.
+  const spendToday = daysLeft > 0 ? Math.max(0, left) / daysLeft : Math.max(0, left);
+  document.getElementById("spend-today").textContent = fmt(spendToday);
+
+  const hero = document.getElementById("spend-hero");
+  hero.classList.toggle("is-over", left < 0);
+  document.getElementById("spend-hero-sub").textContent = left < 0
+    ? `You're ${fmt(Math.abs(left))} beyond what's left this pay period.`
+    : `${fmt(left)} left for ${daysLeft} more day${daysLeft === 1 ? "" : "s"}` +
+      (savePerCycle > 0 ? `, after setting aside ${fmt(savePerCycle)}.` : ".");
+
+  const progressEl = document.getElementById("save-progress");
+  if (settingsUnavailable) {
+    progressEl.textContent = "Run migration_user_settings.sql in Supabase to switch the savings target on.";
+  } else if (savePerCycle <= 0) {
+    progressEl.textContent = "Set an amount above and it's held back before anything counts as spendable — the surest way to actually save it.";
+  } else if (stillToSave <= 0) {
+    progressEl.textContent = `Target met — ${fmt(alreadySaved)} put aside this pay period.`;
+  } else {
+    progressEl.textContent = `${fmt(alreadySaved)} of ${fmt(savePerCycle)} put aside so far — ${fmt(stillToSave)} still reserved.`;
+  }
+
   document.getElementById("cycle-note").textContent =
     `Includes ${fmt(share)} as this fortnight's share of your ${fmt(monthlyCommitments)} monthly fixed costs and family maintenance.`;
 
   card.hidden = false;
 }
+
+// Saving the target is debounced the same way the family maintenance field is.
+let savePerCycleTimer;
+document.getElementById("save-per-cycle").addEventListener("input", (e) => {
+  clearTimeout(savePerCycleTimer);
+  const value = e.target.value;
+  savePerCycleTimer = setTimeout(async () => {
+    const amount = parseFloat(value) || 0;
+    const { error } = await sb.from("user_settings").upsert(
+      { user_id: currentUser.id, save_per_cycle: amount, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    if (error) {
+      console.error(error);
+      toast(settingsUnavailable ? "Run the settings migration first" : "Failed to save target");
+      return;
+    }
+    savePerCycle = amount;
+    renderPayCycle();
+    toast("Savings target saved");
+  }, 600);
+});
 
 // ---------- Money owed back to you ----------
 // Work purchases and money lent to a roommate. These are reminders, never
