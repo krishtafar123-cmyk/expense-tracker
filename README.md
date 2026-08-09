@@ -67,6 +67,7 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_category_budgets.sql](migration_category_budgets.sql) — adds per-category monthly budgets.
 - [migration_reimbursements.sql](migration_reimbursements.sql) — adds the Work Purchases and Lent to Roommate reminders.
 - [migration_user_settings.sql](migration_user_settings.sql) — adds the "pay yourself first" savings target behind the safe-to-spend figure.
+- [migration_paid_status.sql](migration_paid_status.sql) — lets you tick fixed expenses and family maintenance off once paid.
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 

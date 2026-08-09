@@ -734,17 +734,42 @@ input, select { font-family: inherit; }
 
 .owed-form input[id$="-desc"] { grid-column: 1 / -1; }
 
-/* Repaid items stay visible as a record, but recede so the outstanding ones
-   read first. */
+/* Repaid / paid items stay visible as a record, but recede so the outstanding
+   ones read first. */
 .item-list li.is-settled .item-title,
-.item-list li.is-settled .item-amount {
+.item-list li.is-settled .item-amount,
+.item-list li.is-paid .item-title,
+.item-list li.is-paid .item-amount {
   text-decoration: line-through;
   opacity: 0.6;
 }
 
-.item-list li.is-settled .item-sub {
+.item-list li.is-settled .item-sub,
+.item-list li.is-paid .item-sub {
   color: var(--green);
 }
+
+/* ---------- Paid status ---------- */
+.still-to-pay {
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.paid-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -6px 0 4px;
+}
+
+.paid-row.is-paid { color: var(--green); }
+
+.paid-row[hidden] { display: none; }
 
 .settle-btn {
   background: transparent;

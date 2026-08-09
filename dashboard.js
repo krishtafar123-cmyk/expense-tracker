@@ -250,6 +250,8 @@ async function loadMonth() {
     renderSalaryList();
     renderSavingsList();
     renderFixedList();
+    renderFamilyPaid();
+    renderStillToPay();
     renderDailyList();
     renderCategoryBreakdown();
     renderBudgets();
@@ -288,6 +290,8 @@ async function saveField(field, value) {
     .eq("id", row.id).select().single();
   if (error) { console.error(error); toast("Failed to save"); return; }
   monthlyRow = data;
+  renderFamilyPaid();
+  renderStillToPay();
   renderSummary();
 }
 
@@ -316,6 +320,7 @@ onSubmitLocked("fixed-form", async () => {
   nameInput.value = "";
   amountInput.value = "";
   renderFixedList();
+  renderStillToPay();
   renderSummary();
 });
 
@@ -324,7 +329,84 @@ async function deleteFixedExpense(id) {
   if (error) { console.error(error); toast("Failed to delete"); return; }
   fixedExpenses = fixedExpenses.filter((f) => f.id !== id);
   renderFixedList();
+  renderStillToPay();
   renderSummary();
+}
+
+// ---------- Paid status ----------
+// Ticking something off is a record of what's actually left your account, not
+// a change to the maths: rent has to be reserved for whether or not it's been
+// transferred yet, so no total moves when this is toggled.
+async function toggleFixedPaid(item) {
+  const next = !item.paid;
+  const patch = { paid: next, paid_on: next ? toDateStr(new Date()) : null };
+  const { error } = await sb.from("fixed_expenses").update(patch).eq("id", item.id);
+  if (error) {
+    console.error(error);
+    toast("Run the paid-status migration first");
+    return;
+  }
+  item.paid = patch.paid;
+  item.paid_on = patch.paid_on;
+  renderFixedList();
+  renderStillToPay();
+  renderInsights();
+  toast(next ? "Marked as paid" : "Marked as not paid");
+}
+
+async function toggleFamilyPaid() {
+  const row = await ensureMonthlyRow();
+  if (!row) return;
+  const next = !row.family_paid;
+  const patch = { family_paid: next, family_paid_on: next ? toDateStr(new Date()) : null };
+  const { data, error } = await sb.from("monthly_data").update(patch).eq("id", row.id).select().single();
+  if (error) {
+    console.error(error);
+    toast("Run the paid-status migration first");
+    return;
+  }
+  monthlyRow = data;
+  renderFamilyPaid();
+  renderStillToPay();
+  renderInsights();
+  toast(next ? "Marked as paid" : "Marked as not paid");
+}
+
+document.getElementById("family-paid-btn").addEventListener("click", toggleFamilyPaid);
+
+function renderFamilyPaid() {
+  const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
+  const row = document.getElementById("family-paid-row");
+  const btn = document.getElementById("family-paid-btn");
+  const label = document.getElementById("family-paid-label");
+
+  // Nothing to pay means nothing to tick off.
+  row.hidden = family <= 0;
+  if (family <= 0) return;
+
+  const paid = !!(monthlyRow && monthlyRow.family_paid);
+  row.classList.toggle("is-paid", paid);
+  btn.textContent = paid ? "↺" : "✓";
+  btn.setAttribute("aria-label", paid ? "Mark family maintenance as not paid" : "Mark family maintenance as paid");
+  label.textContent = paid
+    ? "Paid" + (monthlyRow.family_paid_on
+        ? " " + new Date(monthlyRow.family_paid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+        : "")
+    : "Not paid yet";
+}
+
+function unpaidCommitments() {
+  const unpaidFixed = fixedExpenses.filter((f) => !f.paid).reduce((s, f) => s + Number(f.amount), 0);
+  const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
+  const unpaidFamily = monthlyRow && monthlyRow.family_paid ? 0 : family;
+  return unpaidFixed + unpaidFamily;
+}
+
+function renderStillToPay() {
+  const total = unpaidCommitments();
+  const el = document.getElementById("still-to-pay");
+  document.getElementById("still-to-pay-value").textContent = fmt(total);
+  el.hidden = total <= 0;
 }
 
 function renderFixedList() {
@@ -336,11 +418,26 @@ function renderFixedList() {
   }
   for (const f of fixedExpenses) {
     const li = document.createElement("li");
+    if (f.paid) li.classList.add("is-paid");
+    const describe = f.name + ", " + fmt(f.amount);
+    const paidLabel = f.paid_on
+      ? "paid " + new Date(f.paid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+      : (f.paid ? "paid" : "");
+
     li.innerHTML = `
-      <div class="item-main"><span class="item-title">${escapeHtml(f.name)}</span></div>
+      <div class="item-main">
+        <span class="item-title">${escapeHtml(f.name)}</span>
+        ${paidLabel ? `<span class="item-sub">${paidLabel}</span>` : ""}
+      </div>
       <span class="item-amount">${fmt(f.amount)}</span>
-      ${rowActions(f.name + ", " + fmt(f.amount))}
+      <span class="item-actions">
+        <button class="settle-btn" aria-label="${escapeAttr((f.paid ? "Mark as not paid: " : "Mark as paid: ") + describe)}"
+                title="${f.paid ? "Mark as not paid" : "Mark as paid"}">${f.paid ? "↺" : "✓"}</button>
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+      </span>
     `;
+    li.querySelector(".settle-btn").addEventListener("click", () => toggleFixedPaid(f));
     li.querySelector(".delete-btn").addEventListener("click", () => deleteFixedExpense(f.id));
     attachEdit(li, f, [
       { key: "name", type: "text", required: true },
@@ -1514,6 +1611,20 @@ function generateInsights() {
         text: typicalPay > 0
           ? `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — roughly ${fmt(typicalPay)} more than a normal month. A good month to save the extra.`
           : `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — a good month to save the extra.`,
+      });
+    }
+  }
+
+  // 8. Unpaid commitments, but only late in the month. Flagging them from the
+  // 1st would just be noise — they're not overdue, they're simply not due yet.
+  if (viewingCurrentMonth) {
+    const outstanding = unpaidCommitments();
+    const daysToMonthEnd = totalDays - daysElapsed;
+    if (outstanding > 0 && daysToMonthEnd <= 7) {
+      insights.unshift({
+        tone: "warning",
+        icon: "📌",
+        text: `${fmt(outstanding)} of fixed costs and family maintenance still isn't ticked off, with ${daysToMonthEnd} day${daysToMonthEnd === 1 ? "" : "s"} left in the month.`,
       });
     }
   }

@@ -146,10 +146,20 @@
         <section class="card">
           <h2><span aria-hidden="true">📋</span> Monthly Setup</h2>
 
+          <div class="still-to-pay" id="still-to-pay" hidden>
+            <div class="summary-label">Still to pay this month</div>
+            <div class="savings-balance-value" id="still-to-pay-value">$0</div>
+          </div>
+
           <label class="field">
             Family Maintenance
             <input type="number" inputmode="decimal" id="input-family" step="0.01" min="0" placeholder="0.00" />
           </label>
+
+          <div class="paid-row" id="family-paid-row">
+            <button type="button" class="settle-btn" id="family-paid-btn" aria-label="Mark family maintenance as paid">✓</button>
+            <span id="family-paid-label">Not paid yet</span>
+          </div>
 
           <h3 class="subheading">Fixed Expenses</h3>
           <ul id="fixed-list" class="item-list"></ul>

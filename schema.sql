@@ -8,6 +8,8 @@ create table if not exists monthly_data (
   user_id uuid not null references auth.users(id) on delete cascade,
   month date not null,
   family_maintenance numeric not null default 0,
+  family_paid boolean not null default false,
+  family_paid_on date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, month)
@@ -19,6 +21,8 @@ create table if not exists fixed_expenses (
   month date not null,
   name text not null,
   amount numeric not null default 0,
+  paid boolean not null default false,
+  paid_on date,
   created_at timestamptz not null default now()
 );
 
