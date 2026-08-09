@@ -666,6 +666,28 @@ input, select { font-family: inherit; }
   margin: 0 0 16px;
 }
 
+/* ---------- Pay cycle ---------- */
+.cycle-card { margin-bottom: 20px; }
+
+.cycle-range {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -8px 0 16px;
+}
+
+.cycle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.cycle-value {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
 /* ---------- Money owed back to you ---------- */
 .owed-banner {
   border-radius: 12px;

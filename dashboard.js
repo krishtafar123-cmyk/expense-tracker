@@ -245,6 +245,7 @@ async function loadMonth() {
     renderBudgets();
     renderOwed();
     renderTrend();
+    renderPayCycle();
     renderSummary();
   } catch (err) {
     console.error(err);
@@ -655,6 +656,107 @@ document.getElementById("daily-date-change").addEventListener("click", () => {
 });
 
 document.getElementById("daily-date").addEventListener("change", setDailyDateLabel);
+
+// ---------- Pay cycle ----------
+// Pay lands fortnightly, but budgets are monthly, and the two never line up.
+// The cycle is derived from the salary payments already logged rather than
+// asking for a schedule to be configured: any real payment date anchors the
+// fortnight, since every other payday is 14 days from it.
+const PAY_INTERVAL_DAYS = 14;
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function payAnchorDate() {
+  if (allSalaryPayments.length === 0) return null;
+  // The latest real payment is the most trustworthy anchor — earlier ones may
+  // predate a change of payday.
+  const latest = allSalaryPayments.map((p) => p.date).sort().pop();
+  return new Date(latest + "T00:00:00");
+}
+
+// The fortnight containing `date`, counted in whole 14-day steps from anchor.
+function cycleContaining(date, anchor) {
+  const steps = Math.floor((date - anchor) / 86400000 / PAY_INTERVAL_DAYS);
+  const start = addDays(anchor, steps * PAY_INTERVAL_DAYS);
+  return { start, end: addDays(start, PAY_INTERVAL_DAYS) };
+}
+
+// Pay dates landing inside a given calendar month.
+function payDatesInMonth(monthStart, anchor) {
+  const monthEnd = monthEndExclusive(monthStart);
+  const first = cycleContaining(monthStart, anchor).start;
+  const dates = [];
+  for (let d = first; d < monthEnd; d = addDays(d, PAY_INTERVAL_DAYS)) {
+    if (d >= monthStart) dates.push(new Date(d));
+  }
+  return dates;
+}
+
+function renderPayCycle() {
+  const card = document.getElementById("cycle-card");
+  const anchor = payAnchorDate();
+  const today = new Date();
+  const viewingCurrentMonth =
+    today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
+
+  // The cycle is a "right now" tool, so it would only confuse things while
+  // browsing a past month.
+  if (!anchor || !viewingCurrentMonth) {
+    card.hidden = true;
+    return;
+  }
+
+  const { start, end } = cycleContaining(today, anchor);
+  const startStr = toDateStr(start);
+  const endStr = toDateStr(end);
+
+  const income = allSalaryPayments
+    .filter((p) => p.date >= startStr && p.date < endStr)
+    .reduce((s, p) => s + Number(p.amount), 0);
+  const spent = allDailyExpenses
+    .filter((d) => d.date >= startStr && d.date < endStr)
+    .reduce((s, d) => s + Number(d.amount), 0);
+  const savedNet = savingsTransactions
+    .filter((t) => t.date >= startStr && t.date < endStr)
+    .reduce((s, t) => s + signedAmount(t), 0);
+
+  // Fixed costs are monthly, so charge the cycle its share of them rather than
+  // pretending a fortnight carries a whole month of rent.
+  const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
+  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  const monthlyCommitments = family + fixedTotal;
+  const share = monthlyCommitments * (PAY_INTERVAL_DAYS / daysInMonth(currentMonth));
+
+  const left = income - share - spent - savedNet;
+  const daysLeft = Math.max(0, Math.ceil((end - today) / 86400000));
+  const perDay = daysLeft > 0 ? left / daysLeft : left;
+
+  const fmtDay = (d) => d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+  document.getElementById("cycle-range").textContent =
+    fmtDay(start) + " → " + fmtDay(addDays(end, -1)) + " · next pay " + fmtDay(end);
+
+  document.getElementById("cycle-income").textContent = fmt(income);
+  document.getElementById("cycle-spent").textContent = fmt(spent);
+
+  const leftEl = document.getElementById("cycle-left");
+  leftEl.textContent = fmt(left);
+  leftEl.classList.toggle("negative", left < 0);
+
+  document.getElementById("cycle-perday-label").textContent =
+    daysLeft > 0 ? `Per day for ${daysLeft} more day${daysLeft === 1 ? "" : "s"}` : "Per day";
+  const perDayEl = document.getElementById("cycle-perday");
+  perDayEl.textContent = fmt(Math.max(0, perDay));
+  perDayEl.classList.toggle("negative", perDay <= 0);
+
+  document.getElementById("cycle-note").textContent =
+    `Includes ${fmt(share)} as this fortnight's share of your ${fmt(monthlyCommitments)} monthly fixed costs and family maintenance.`;
+
+  card.hidden = false;
+}
 
 // ---------- Money owed back to you ----------
 // Work purchases and money lent to a roommate. These are reminders, never
@@ -1331,6 +1433,28 @@ function generateInsights() {
       icon: "🤝",
       text: `Your roommate still owes you ${fmt(owedRoommate)} across ${count} item${count === 1 ? "" : "s"}.`,
     });
+  }
+
+  // 7. Three-pay months. Fortnightly pay means 26 pays a year, not 24, so two
+  // months each year carry a third payday. Budgeting as though every month has
+  // two makes that third one a genuine windfall — but only if it's noticed
+  // before it gets absorbed into ordinary spending.
+  const anchor = payAnchorDate();
+  if (anchor) {
+    const payDates = payDatesInMonth(currentMonth, anchor);
+    if (payDates.length >= 3) {
+      const third = payDates[2].toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+      const typicalPay = salaryPayments.length
+        ? salaryPayments.reduce((s, p) => s + Number(p.amount), 0) / salaryPayments.length
+        : 0;
+      insights.unshift({
+        tone: "positive",
+        icon: "🎁",
+        text: typicalPay > 0
+          ? `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — roughly ${fmt(typicalPay)} more than a normal month. A good month to save the extra.`
+          : `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — a good month to save the extra.`,
+      });
+    }
   }
 
   return insights.slice(0, 5);

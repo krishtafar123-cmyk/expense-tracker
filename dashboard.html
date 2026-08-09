@@ -71,6 +71,32 @@
         </div>
       </section>
 
+      <section class="card cycle-card" id="cycle-card" hidden>
+        <h2><span aria-hidden="true">🗓️</span> This pay period</h2>
+        <p class="cycle-range" id="cycle-range"></p>
+
+        <div class="cycle-grid">
+          <div class="cycle-stat">
+            <div class="summary-label">Paid this period</div>
+            <div class="cycle-value" id="cycle-income">$0</div>
+          </div>
+          <div class="cycle-stat">
+            <div class="summary-label">Spent this period</div>
+            <div class="cycle-value" id="cycle-spent">$0</div>
+          </div>
+          <div class="cycle-stat">
+            <div class="summary-label">Left before next pay</div>
+            <div class="cycle-value" id="cycle-left">$0</div>
+          </div>
+          <div class="cycle-stat">
+            <div class="summary-label" id="cycle-perday-label">Per day</div>
+            <div class="cycle-value" id="cycle-perday">$0</div>
+          </div>
+        </div>
+
+        <p class="card-hint" id="cycle-note"></p>
+      </section>
+
       <div id="copy-prompt" class="copy-prompt" hidden>
         <span>No setup found for this month yet.</span>
         <button id="copy-prev-btn" class="btn btn-secondary">Copy from previous month</button>
