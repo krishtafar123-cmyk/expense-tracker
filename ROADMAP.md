@@ -10,7 +10,9 @@ Live at https://krishtafar123-cmyk-expense-tracker.vercel.app/, deployed from `m
 - **Security** — 15-minute idle auto-lock, manual Lock button, PIN reset by email
 - **Reliability** — visible load errors with Retry, double-submit guards, CSV export of all data
 - **Insights** — 6-month income-vs-spending trend, per-category budgets with auto-suggest, rule-based observations
+- **Owed to you** — Work Purchases and Lent to Roommate reminders, cleared/reopened with the cleared date recorded
 - **Polish** — WCAG AA contrast in both themes, screen-reader labelling throughout, loading feedback
+- **Theme** — light orange glass (translucent blurred cards over a warm gradient), light and dark
 
 ## Gotchas to know before changing things
 
@@ -25,6 +27,8 @@ These caused real bugs or are easy to break:
 7. **New tables need their migration run in Supabase before the feature works.** Code that reads a new table should degrade gracefully if it's missing (see how `category_budgets` is handled) rather than failing the whole page load.
 8. **The category list is duplicated** — `CATEGORIES` in `dashboard.js` and the `<option>` list in `dashboard.html` must be kept in sync by hand. Worth consolidating if categories ever become editable.
 9. **Escaping** — `escapeHtml()` does not escape quotes. Anything interpolated into an HTML *attribute* needs `escapeAttr()`.
+10. **List rows are a grid, not `space-between` flex.** With three flex children the free space gets distributed *around* the amount, so amounts drift horizontally with the length of the name and never form a column. Keep the fixed money column.
+11. **Reimbursements must never enter a spending total.** Work purchases and roommate loans are money owed *back* to you; they are excluded from Remaining, the trend chart, budgets and every spending insight by living in their own table. Don't "helpfully" fold them in.
 
 ## Ideas not built yet
 
