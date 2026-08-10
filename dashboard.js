@@ -302,26 +302,48 @@ document.getElementById("input-family").addEventListener("input", (e) => {
 });
 
 // ---------- Fixed expenses ----------
+// Divide in whole cents and give the remainder to the earliest parts, so the
+// pieces always add back up to the total exactly. Splitting $100 three ways
+// naively would give 33.33 x 3 = 99.99 and quietly lose a cent every month.
+function splitAmount(total, parts) {
+  const cents = Math.round(total * 100);
+  const base = Math.floor(cents / parts);
+  const extra = cents - base * parts;
+  return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 100);
+}
+
 onSubmitLocked("fixed-form", async () => {
   const nameInput = document.getElementById("fixed-name");
   const amountInput = document.getElementById("fixed-amount");
+  const splitInput = document.getElementById("fixed-split");
   const name = nameInput.value.trim();
   const amount = parseFloat(amountInput.value);
+  const parts = Math.max(1, parseInt(splitInput.value, 10) || 1);
   if (!name || isNaN(amount)) return;
 
   await ensureMonthlyRow();
   const key = monthKey(currentMonth);
-  const { data, error } = await sb.from("fixed_expenses")
-    .insert({ user_id: currentUser.id, month: key, name, amount })
-    .select().single();
+
+  // One insert either way — a split is just several ordinary rows, each
+  // independently tickable, editable and copied forward like any other.
+  const rows = splitAmount(amount, parts).map((amt, i) => ({
+    user_id: currentUser.id,
+    month: key,
+    name: parts > 1 ? `${name} (${i + 1}/${parts})` : name,
+    amount: amt,
+  }));
+
+  const { data, error } = await sb.from("fixed_expenses").insert(rows).select();
   if (error) { console.error(error); toast("Failed to add"); return; }
 
-  fixedExpenses.push(data);
+  fixedExpenses.push(...(data || []));
   nameInput.value = "";
   amountInput.value = "";
+  splitInput.value = "1";
   renderFixedList();
   renderStillToPay();
   renderSummary();
+  if (parts > 1) toast(`Added ${parts} rows totalling ${fmt(amount)}`);
 });
 
 async function deleteFixedExpense(id) {

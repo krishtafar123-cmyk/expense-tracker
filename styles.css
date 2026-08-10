@@ -938,6 +938,7 @@ input, select { font-family: inherit; }
 .daily-form button { grid-column: 1 / -1; }
 #salary-form #salary-note { grid-column: 1 / -1; }
 #daily-note, #daily-date { grid-column: 1 / -1; }
+#fixed-name { grid-column: 1 / -1; }
 
 /* Auto date line in the daily form. Scoped to :not([hidden]) so toggling the
    hidden attribute actually hides it despite the display rule. */
