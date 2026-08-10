@@ -44,9 +44,20 @@ if ("serviceWorker" in navigator) {
     }
   }
 
+  // Keyed by url so a file that fails to answer can be skipped individually
+  // rather than discarding the whole comparison — one flaky response would
+  // otherwise disable update detection for the rest of the session.
   async function fingerprintAll() {
     const marks = await Promise.all(watched.map(fingerprint));
-    return marks.map((m, i) => watched[i] + "|" + m).join("\n");
+    const out = {};
+    watched.forEach((url, i) => { if (marks[i]) out[url] = marks[i]; });
+    return out;
+  }
+
+  // An update means: some file we can read now differs from what we read
+  // before. Files missing from either side are simply not evidence.
+  function hasChanged(before, now) {
+    return Object.keys(now).some((url) => before[url] && before[url] !== now[url]);
   }
 
   let baseline = null;
@@ -80,13 +91,15 @@ if ("serviceWorker" in navigator) {
   async function check() {
     if (document.visibilityState !== "visible") return;
     const now = await fingerprintAll();
-    // A failed check yields nulls; only act when we have a real baseline and a
-    // genuinely different result.
-    if (baseline === null) { baseline = now; return; }
-    if (now !== baseline && !now.includes("|null")) showBanner();
+    if (!baseline) { baseline = now; return; }
+    if (hasChanged(baseline, now)) showBanner();
   }
 
   window.addEventListener("load", () => { fingerprintAll().then((f) => { baseline = f; }); });
   document.addEventListener("visibilitychange", check);
   setInterval(check, CHECK_EVERY_MS);
+
+  // Exposed purely so the update path can be exercised in testing without
+  // waiting for a real deploy.
+  window.__updateWatcher = { fingerprintAll, hasChanged, showBanner, getBaseline: () => baseline };
 })();
