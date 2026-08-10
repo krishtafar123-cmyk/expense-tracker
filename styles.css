@@ -982,6 +982,28 @@ input, select { font-family: inherit; }
 }
 .cat-row .cat-amount { width: 70px; text-align: right; flex-shrink: 0; }
 
+/* ---------- Update banner ---------- */
+.update-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 auto;
+  max-width: 480px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--card-solid);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
