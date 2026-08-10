@@ -380,11 +380,20 @@ function renderFamilyPaid() {
   const btn = document.getElementById("family-paid-btn");
   const label = document.getElementById("family-paid-label");
 
+  const paid = !!(monthlyRow && monthlyRow.family_paid);
+
+  // Reset the visible state before the early return below, otherwise a hidden
+  // row keeps last month's text and shows it again the moment it reappears.
+  row.classList.toggle("is-paid", paid);
+
   // Nothing to pay means nothing to tick off.
   row.hidden = family <= 0;
-  if (family <= 0) return;
+  if (family <= 0) {
+    label.textContent = "Not paid yet";
+    btn.textContent = "✓";
+    return;
+  }
 
-  const paid = !!(monthlyRow && monthlyRow.family_paid);
   row.classList.toggle("is-paid", paid);
   btn.textContent = paid ? "↺" : "✓";
   btn.setAttribute("aria-label", paid ? "Mark family maintenance as not paid" : "Mark family maintenance as paid");
@@ -479,6 +488,10 @@ document.getElementById("copy-prev-btn").addEventListener("click", async () => {
   document.getElementById("input-family").value = family;
   document.getElementById("copy-prompt").hidden = true;
   renderFixedList();
+  // The copied month starts unpaid, so the paid-status UI has to be redrawn
+  // too — otherwise it keeps showing the previous month's ticks.
+  renderFamilyPaid();
+  renderStillToPay();
   renderSummary();
   toast("Copied from previous month");
 });
