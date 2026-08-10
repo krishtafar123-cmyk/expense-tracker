@@ -1,61 +1,56 @@
-/* Light orange "glass" theme. Cards are translucent and blurred over a warm
-   gradient. Translucency is kept high enough (0.72 / 0.10) that text still
-   composites onto a near-solid surface — a more see-through card looks nicer
-   in a screenshot but drops text contrast below WCAG AA over the darker parts
-   of the gradient. */
+/* Slate & navy. Flat surfaces, thin borders, minimal shadow — no blur or
+   gradients. Colour is reserved for meaning: navy for actions, green and red
+   only where they say something about the money. */
 :root {
-  --bg: #ffeedd;
-  --bg-grad-1: #ffe3c7;
-  --bg-grad-2: #ffd2ab;
-  --bg-grad-3: #fff5ea;
-  --card-bg: rgba(255, 255, 255, 0.72);
-  /* Opaque stand-in for anything that must not go translucent. */
-  --card-solid: #fff7ef;
-  --text: #3b2617;
-  --text-muted: #6b5140;
-  --border: rgba(255, 255, 255, 0.75);
-  --border-strong: rgba(180, 120, 70, 0.22);
-  --primary: #b4530c;
-  --primary-hover: #97440a;
-  --accent: #f5a04a;
+  --bg: #f4f6f8;
+  --card-bg: #ffffff;
+  /* Kept as a separate token so anything needing a guaranteed-opaque surface
+     doesn't depend on --card-bg happening to be solid. */
+  --card-solid: #ffffff;
+  --text: #1a2027;
+  --text-muted: #5b6672;
+  --border: #e3e8ee;
+  --border-strong: #cfd7e0;
+  --primary: #1f3a5f;
+  --primary-hover: #16294a;
+  --accent: #2f5a8f;
   /* Text/icons sitting on top of --primary. */
   --on-primary: #ffffff;
-  --on-primary-muted: rgba(255,255,255,0.88);
-  --green: #2f7a3c;
-  --red: #b0473c;
-  /* Chart series need distinct hues, not two shades of the same orange. */
-  --chart-income: #2f7a3c;
-  --chart-spending: #c9611a;
-  --input-bg: rgba(255, 255, 255, 0.62);
-  --shadow: 0 8px 26px rgba(150, 85, 30, 0.14);
-  --radius: 18px;
-  --glass-blur: blur(14px) saturate(150%);
+  --on-primary-muted: rgba(255,255,255,0.82);
+  --green: #1e7a4a;
+  --red: #b3261e;
+  /* The two series must differ in lightness, not just hue — green vs red at
+     the same luminance is nearly indistinguishable to a colourblind reader,
+     and the bars sit side by side with nothing else to tell them apart. */
+  --chart-income: #1f3a5f;
+  --chart-spending: #b8823f;
+  --input-bg: #ffffff;
+  --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.08);
+  --radius: 10px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #201711;
-    --bg-grad-1: #2a1d13;
-    --bg-grad-2: #1a1209;
-    --bg-grad-3: #241a12;
-    --card-bg: rgba(255, 244, 232, 0.10);
-    --card-solid: #2a2018;
-    --text: #f7ece1;
-    --text-muted: #c4ac96;
-    --border: rgba(255, 226, 198, 0.16);
-    --border-strong: rgba(255, 226, 198, 0.26);
-    --primary: #ff9d55;
-    --primary-hover: #ffb478;
-    --accent: #ffc48a;
-    /* Primary is light in dark mode, so what sits on it must be dark. */
-    --on-primary: #2a1408;
-    --on-primary-muted: rgba(42,20,8,0.78);
-    --green: #7bbf85;
-    --red: #f08b7f;
-    --chart-income: #7bbf85;
-    --chart-spending: #ff9d55;
-    --input-bg: rgba(255, 244, 232, 0.08);
-    --shadow: 0 8px 26px rgba(0,0,0,0.45);
+    --bg: #10151b;
+    --card-bg: #171d25;
+    --card-solid: #171d25;
+    --text: #e6eaef;
+    --text-muted: #9aa4b0;
+    --border: #262f3a;
+    --border-strong: #333e4b;
+    /* Navy is unreadable on a dark background, so it lightens rather than
+       staying the same hex as light mode. */
+    --primary: #7aa7d9;
+    --primary-hover: #93b9e4;
+    --accent: #5b8ac2;
+    --on-primary: #0e1620;
+    --on-primary-muted: rgba(14,22,32,0.75);
+    --green: #4fae7c;
+    --red: #e0736a;
+    --chart-income: #5b8ac2;
+    --chart-spending: #e0b184;
+    --input-bg: #1d242d;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.45);
   }
 }
 
@@ -86,19 +81,12 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
-  background-color: var(--bg);
-  /* Soft blobs give the frosted cards something to actually refract. Fixed so
-     the backdrop doesn't slide under the cards while scrolling. */
-  background-image:
-    radial-gradient(60rem 40rem at 12% -8%, var(--bg-grad-1), transparent 60%),
-    radial-gradient(50rem 36rem at 92% 4%, var(--bg-grad-2), transparent 62%),
-    radial-gradient(70rem 50rem at 50% 108%, var(--bg-grad-3), transparent 65%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background: var(--bg);
   min-height: 100vh;
 }
 
-/* ---------- Glass surfaces ---------- */
+/* ---------- Surfaces ---------- */
+/* Flat panels separated by a hairline border rather than blur or shadow. */
 .card,
 .summary-card,
 .auth-card,
@@ -107,27 +95,9 @@ body {
 .load-error,
 .savings-balance,
 .owed-banner {
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
 }
 
-/* Without backdrop-filter the cards would read as flat washed-out panels, so
-   fall back to an opaque surface instead. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .card,
-  .summary-card,
-  .auth-card,
-  .topbar,
-  .copy-prompt,
-  .load-error,
-  .savings-balance,
-  .owed-banner {
-    background: var(--card-solid);
-  }
-}
-
-/* Translucent fills need a defined edge, or fields disappear into the card. */
 .field input,
 .daily-form input,
 .daily-form select,
@@ -462,7 +432,7 @@ input, select { font-family: inherit; }
 }
 
 .summary-card-highlight {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: var(--primary);
   color: var(--on-primary);
 }
 .summary-card-highlight .summary-label { color: var(--on-primary-muted); }
@@ -676,9 +646,9 @@ input, select { font-family: inherit; }
 }
 
 .spend-hero {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: var(--primary);
   color: var(--on-primary);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 16px;
 }
