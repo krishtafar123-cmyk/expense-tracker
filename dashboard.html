@@ -168,16 +168,16 @@
             <input type="text" id="fixed-name" aria-label="Fixed expense name" placeholder="Name (e.g. Rent)" required />
             <input type="number" inputmode="decimal" id="fixed-amount" aria-label="Total amount for the month" placeholder="Total for the month" step="0.01" min="0" required />
             <select id="fixed-split" aria-label="Split into how many separate payments">
-              <option value="1">One payment</option>
-              <option value="2">Split into 2</option>
-              <option value="3">Split into 3</option>
-              <option value="4">Split into 4</option>
-              <option value="5">Split into 5</option>
-              <option value="6">Split into 6</option>
+              <option value="1">Split: no</option>
+              <option value="2">Split into 2 ×</option>
+              <option value="3">Split into 3 ×</option>
+              <option value="4">Split into 4 ×</option>
+              <option value="5">Split into 5 ×</option>
+              <option value="6">Split into 6 ×</option>
             </select>
             <button type="submit" class="btn btn-primary">Add fixed expense</button>
           </form>
-          <p class="card-hint">Splitting turns one cost into that many rows you can tick off separately — e.g. fuel at $200 a month, split into 4, gives four $50 fill-ups.</p>
+          <p class="card-hint"><strong>Split</strong> turns one cost into that many rows you can tick off separately — e.g. fuel at $200 a month, <em>split into 4</em>, gives four $50 fill-ups.</p>
         </section>
 
         <section class="card">
