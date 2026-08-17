@@ -151,8 +151,13 @@ function setLoading(on) {
   document.querySelector(".content").setAttribute("aria-busy", on ? "true" : "false");
 }
 
-function showLoadError(message) {
+function showLoadError(message, detail) {
   document.getElementById("load-error-text").textContent = message;
+  // The cause used to go only to console.error, which is unreadable on a
+  // phone — the one place this error actually turns up.
+  const detailEl = document.getElementById("load-error-detail");
+  detailEl.textContent = detail || "";
+  detailEl.hidden = !detail;
   document.getElementById("load-error").hidden = false;
 }
 
@@ -169,6 +174,83 @@ function blankSummary() {
 document.getElementById("load-retry").addEventListener("click", loadMonth);
 
 // ---------- Data loading ----------
+
+// A single dropped request shouldn't cost you the whole month. Eight queries
+// go out at once, so on a phone with patchy signal the odds of one of them
+// failing are a good deal higher than the odds of the connection being
+// genuinely down — retrying briefly turns most of those back into a normal
+// load instead of an error banner.
+const RETRY_DELAYS_MS = [400, 1200];
+
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+// Worth another attempt: the request never landed, the server wobbled, or we
+// were rate limited. A 4xx (missing table, bad request, RLS refusal) fails
+// identically every time, so retrying it only delays showing the real problem.
+function isTransient(result) {
+  if (result.status === 0) return true; // fetch() rejected: offline, DNS, dropped mid-flight
+  return result.status === 408 || result.status === 429 || result.status >= 500;
+}
+
+// The queries run in parallel, so one expired token would otherwise set off
+// eight simultaneous refreshes. The first to notice does the work and the rest
+// wait on the same promise.
+let refreshInFlight = null;
+function refreshSessionOnce() {
+  if (!refreshInFlight) {
+    refreshInFlight = sb.auth.refreshSession().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+// `build` returns a fresh query rather than a promise, because a supabase query
+// builder can only be awaited once — a retry needs a newly built one.
+async function runQuery(label, build) {
+  let attempt = 0;
+  let refreshed = false;
+
+  while (true) {
+    let result;
+    try {
+      result = await build();
+    } catch (err) {
+      // fetch() itself rejected, so there's no response to read a status off.
+      // Normalised into the shape a Postgrest error already comes back in.
+      result = { data: null, error: err, status: 0 };
+    }
+
+    if (!result.error) return { label, ...result };
+
+    // An expired access token comes back as a flat 401 and would fail the same
+    // way on every retry — but succeeds after one refresh. Doesn't spend a
+    // retry, since it isn't a flaky-connection failure.
+    if (result.status === 401 && !refreshed) {
+      refreshed = true;
+      try { await refreshSessionOnce(); } catch (err) { console.error(err); }
+      continue;
+    }
+
+    if (!isTransient(result) || attempt >= RETRY_DELAYS_MS.length) return { label, ...result };
+
+    console.warn(describeFailure({ label, ...result }) + " — retrying");
+    await sleep(RETRY_DELAYS_MS[attempt]);
+    attempt++;
+  }
+}
+
+// What actually went wrong, short enough to sit in the error banner. The table
+// name matters most: a bare "Failed to fetch" narrows nothing down.
+function describeFailure(result) {
+  if (!result || !result.error) return "";
+  if (result.status === 0) return `${result.label}: no connection`;
+  const err = result.error;
+  const msg = err.message || String(err);
+  let code = "";
+  if (err.code) code = ` (${err.code})`;
+  else if (result.status) code = ` (HTTP ${result.status})`;
+  return `${result.label}: ${msg}${code}`;
+}
+
 async function loadMonth() {
   document.getElementById("month-label").textContent = monthLabel(currentMonth);
   const key = monthKey(currentMonth);
@@ -187,18 +269,18 @@ async function loadMonth() {
     // and previous month are sliced out of these client-side, which keeps the
     // round trips down instead of querying each month separately.
     const results = await Promise.all([
-      sb.from("monthly_data").select("*").eq("user_id", currentUser.id)
-        .gte("month", rangeStart).lte("month", key),
-      sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id)
-        .gte("month", rangeStart).lte("month", key).order("created_at"),
-      sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
-        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false }),
-      sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
-        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false }),
-      sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
-      sb.from("category_budgets").select("*").eq("user_id", currentUser.id),
-      sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false }),
-      sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle(),
+      runQuery("monthly_data", () => sb.from("monthly_data").select("*").eq("user_id", currentUser.id)
+        .gte("month", rangeStart).lte("month", key)),
+      runQuery("fixed_expenses", () => sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id)
+        .gte("month", rangeStart).lte("month", key).order("created_at")),
+      runQuery("daily_expenses", () => sb.from("daily_expenses").select("*").eq("user_id", currentUser.id)
+        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false })),
+      runQuery("salary_payments", () => sb.from("salary_payments").select("*").eq("user_id", currentUser.id)
+        .gte("date", rangeStart).lt("date", rangeEnd).order("date", { ascending: false })),
+      runQuery("savings_transactions", () => sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
+      runQuery("category_budgets", () => sb.from("category_budgets").select("*").eq("user_id", currentUser.id)),
+      runQuery("reimbursements", () => sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
+      runQuery("user_settings", () => sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle()),
     ]);
 
     const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, settingsRes] = results;
@@ -206,7 +288,9 @@ async function loadMonth() {
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
     const failed = [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes].find((r) => r.error);
-    if (failed) throw failed.error;
+    // Thrown whole rather than as `.error` alone, so the catch below can name
+    // which table it was.
+    if (failed) throw failed;
 
     allMonthlyRows = monthlyRes.data || [];
     allFixedRows = fixedRes.data || [];
@@ -260,8 +344,12 @@ async function loadMonth() {
     renderPayCycle();
     renderSummary();
   } catch (err) {
-    console.error(err);
-    showLoadError("Couldn't load your data — check your connection and try again.");
+    console.error(err && err.error ? err.error : err);
+    // A bug in one of the render functions lands here too, and used to be
+    // reported as a connection problem — showing the real message stops that
+    // sending you off chasing the wrong thing.
+    const detail = err && err.label ? describeFailure(err) : (err && err.message) || String(err);
+    showLoadError("Couldn't load your data — check your connection and try again.", detail);
     if (!hasLoadedOnce) blankSummary();
   } finally {
     setLoading(false);
@@ -312,13 +400,29 @@ function splitAmount(total, parts) {
   return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 100);
 }
 
+// Typing a name that matches a category is almost always meant as an
+// allowance for it, so preselect that — still overridable.
+document.getElementById("fixed-name").addEventListener("input", (e) => {
+  const select = document.getElementById("fixed-category");
+  if (select.dataset.touched === "1") return;
+  const typed = e.target.value.trim().toLowerCase();
+  const match = CATEGORIES.find((c) => c.toLowerCase() === typed);
+  select.value = match || "";
+});
+
+document.getElementById("fixed-category").addEventListener("change", (e) => {
+  e.target.dataset.touched = "1";
+});
+
 onSubmitLocked("fixed-form", async () => {
   const nameInput = document.getElementById("fixed-name");
   const amountInput = document.getElementById("fixed-amount");
   const splitInput = document.getElementById("fixed-split");
+  const categoryInput = document.getElementById("fixed-category");
   const name = nameInput.value.trim();
   const amount = parseFloat(amountInput.value);
   const parts = Math.max(1, parseInt(splitInput.value, 10) || 1);
+  const category = categoryInput.value || null;
   if (!name || isNaN(amount)) return;
 
   await ensureMonthlyRow();
@@ -331,6 +435,7 @@ onSubmitLocked("fixed-form", async () => {
     month: key,
     name: parts > 1 ? `${name} (${i + 1}/${parts})` : name,
     amount: amt,
+    category,
   }));
 
   const { data, error } = await sb.from("fixed_expenses").insert(rows).select();
@@ -340,6 +445,8 @@ onSubmitLocked("fixed-form", async () => {
   nameInput.value = "";
   amountInput.value = "";
   splitInput.value = "1";
+  categoryInput.value = "";
+  delete categoryInput.dataset.touched;
   renderFixedList();
   renderStillToPay();
   renderSummary();
@@ -353,6 +460,47 @@ async function deleteFixedExpense(id) {
   renderFixedList();
   renderStillToPay();
   renderSummary();
+}
+
+// ---------- Allowances ----------
+// A fixed expense linked to a category is an envelope: the amount is reserved
+// up front and daily spending in that category draws it down, rather than
+// adding on top of it. Without this the same money is deducted twice — once as
+// the allowance and again as the spending.
+function spentInCategory(category) {
+  return dailyExpenses
+    .filter((d) => d.category === category)
+    .reduce((s, d) => s + Number(d.amount), 0);
+}
+
+function allowanceFor(category) {
+  return fixedExpenses
+    .filter((f) => f.category === category)
+    .reduce((s, f) => s + Number(f.amount), 0);
+}
+
+// Every fixed cost, whether or not any of it has been spent yet. Used where
+// the question is "how much am I committed to", not "how much is left".
+function fixedCommitted() {
+  return fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+}
+
+// What's still held back: ordinary rows in full, allowance rows only for the
+// part not yet spent. Overspending an allowance reserves nothing further —
+// the excess is already counted once, in daily spending.
+//
+// Remaining then works out as salary − family − reserved − allDaily, which
+// stays correct whether an allowance is untouched, partly used or blown.
+function fixedReserved() {
+  let reserved = 0;
+  const seen = new Set();
+  for (const f of fixedExpenses) {
+    if (!f.category) { reserved += Number(f.amount); continue; }
+    if (seen.has(f.category)) continue; // allowances are summed per category
+    seen.add(f.category);
+    reserved += Math.max(0, allowanceFor(f.category) - spentInCategory(f.category));
+  }
+  return reserved;
 }
 
 // ---------- Paid status ----------
@@ -455,9 +603,20 @@ function renderFixedList() {
       ? "paid " + new Date(f.paid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
       : (f.paid ? "paid" : "");
 
+    // For an allowance, how much of it has been used is the useful detail —
+    // several rows can share a category, so this reports the category total.
+    let allowanceLabel = "";
+    if (f.category) {
+      const used = spentInCategory(f.category);
+      const total = allowanceFor(f.category);
+      const over = used > total;
+      allowanceLabel = `<span class="item-sub ${over ? "negative" : ""}">${fmt(used)} of ${fmt(total)} used${over ? " — over" : ""}</span>`;
+    }
+
     li.innerHTML = `
       <div class="item-main">
         <span class="item-title">${escapeHtml(f.name)}</span>
+        ${allowanceLabel}
         ${paidLabel ? `<span class="item-sub">${paidLabel}</span>` : ""}
       </div>
       <span class="item-amount">${fmt(f.amount)}</span>
@@ -473,6 +632,10 @@ function renderFixedList() {
     attachEdit(li, f, [
       { key: "name", type: "text", required: true },
       { key: "amount", type: "number", required: true },
+      { key: "category", type: "select", nullable: true, options: [
+        { value: "", label: "Not an allowance" },
+        ...CATEGORIES.map((c) => ({ value: c, label: "Allowance for " + c })),
+      ] },
     ], "fixed_expenses", renderFixedList);
     ul.appendChild(li);
   }
@@ -868,9 +1031,10 @@ function renderPayCycle() {
 
   // Fixed costs are monthly, so charge the cycle its share of them rather than
   // pretending a fortnight carries a whole month of rent.
+  // Reserved, not committed: spending already logged against an allowance is
+  // in `spent` below, so charging the full allowance here would double-count.
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
-  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
-  const monthlyCommitments = family + fixedTotal;
+  const monthlyCommitments = family + fixedReserved();
   const share = monthlyCommitments * (PAY_INTERVAL_DAYS / daysInMonth(currentMonth));
 
   // Pay yourself first: the target is reserved before anything counts as
@@ -1372,7 +1536,9 @@ function suggestBudgets() {
 
   const income = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
-  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  // Full commitments here, not the reserved figure: a suggestion baseline
+  // shouldn't drift as the month's spending happens to land.
+  const fixedTotal = fixedCommitted();
   const available = income - family - fixedTotal;
 
   let scaled = false;
@@ -1434,7 +1600,10 @@ document.getElementById("suggest-budgets-btn").addEventListener("click", async (
 function renderSummary() {
   const salary = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
-  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  // Reserved rather than committed, so an allowance already partly spent isn't
+  // deducted twice. The Fixed card therefore shows money still held back, and
+  // Fixed + Daily always adds up to what Remaining actually subtracts.
+  const fixedTotal = fixedReserved();
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
   const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
   const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
@@ -1483,7 +1652,7 @@ function generateInsights() {
 
   const salary = salaryPayments.reduce((s, p) => s + Number(p.amount), 0);
   const family = monthlyRow ? Number(monthlyRow.family_maintenance) : 0;
-  const fixedTotal = fixedExpenses.reduce((s, f) => s + Number(f.amount), 0);
+  const fixedTotal = fixedReserved();
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
   const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
   const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
@@ -1597,7 +1766,10 @@ function generateInsights() {
 
   // 5. Fixed + family commitments vs salary.
   if (salary > 0) {
-    const committedShare = ((family + fixedTotal) / salary) * 100;
+    // Full commitments, not the reserved figure — this is about how much of
+    // the salary is spoken for, which shouldn't shrink just because some of an
+    // allowance has now been spent.
+    const committedShare = ((family + fixedCommitted()) / salary) * 100;
     if (committedShare >= 60) {
       insights.push({
         tone: "info",

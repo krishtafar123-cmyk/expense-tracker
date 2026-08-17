@@ -36,7 +36,10 @@
       <div id="loading-bar" class="loading-bar" aria-hidden="true" hidden></div>
 
       <div id="load-error" class="load-error" role="alert" hidden>
-        <span id="load-error-text"></span>
+        <div class="load-error-msg">
+          <span id="load-error-text"></span>
+          <span id="load-error-detail" class="load-error-detail" hidden></span>
+        </div>
         <button type="button" id="load-retry" class="btn btn-secondary">Retry</button>
       </div>
 
@@ -175,9 +178,21 @@
               <option value="5">Split into 5 ×</option>
               <option value="6">Split into 6 ×</option>
             </select>
+            <select id="fixed-category" aria-label="Count daily spending in a category against this allowance">
+              <option value="">Not an allowance</option>
+              <option value="Food">Allowance for Food</option>
+              <option value="Groceries">Allowance for Groceries</option>
+              <option value="Transport">Allowance for Transport</option>
+              <option value="Shopping">Allowance for Shopping</option>
+              <option value="Bills">Allowance for Bills</option>
+              <option value="Health">Allowance for Health</option>
+              <option value="Entertainment">Allowance for Entertainment</option>
+              <option value="Other">Allowance for Other</option>
+            </select>
             <button type="submit" class="btn btn-primary">Add fixed expense</button>
           </form>
           <p class="card-hint"><strong>Split</strong> turns one cost into that many rows you can tick off separately — e.g. fuel at $200 a month, <em>split into 4</em>, gives four $50 fill-ups.</p>
+          <p class="card-hint"><strong>Allowance</strong> reserves the amount up front and lets your daily spending in that category draw it down, instead of counting twice — e.g. a $200 Groceries allowance with $60 of groceries logged shows <em>$60 of $200 used</em>.</p>
         </section>
 
         <section class="card">

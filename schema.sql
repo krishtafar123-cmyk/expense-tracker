@@ -21,6 +21,7 @@ create table if not exists fixed_expenses (
   month date not null,
   name text not null,
   amount numeric not null default 0,
+  category text,
   paid boolean not null default false,
   paid_on date,
   created_at timestamptz not null default now()

@@ -416,6 +416,23 @@ input, select { font-family: inherit; }
   font-size: 14px;
 }
 
+.load-error-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* Deliberately no `display` rule here: this element is toggled with the
+   `hidden` attribute, and a display rule would override it (see ROADMAP
+   gotcha 1). As a flex item it lays out on its own line regardless. */
+.load-error-detail {
+  font-size: 12px;
+  opacity: 0.8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Summary ---------- */
 .summary-grid {
   display: grid;
