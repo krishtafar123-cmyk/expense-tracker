@@ -1274,6 +1274,10 @@ onSubmitLocked("daily-form", async () => {
     dailyExpenses.sort((a, b) => (a.date < b.date ? 1 : -1));
     renderDailyList();
     renderCategoryBreakdown();
+    // Daily spending draws down allowances, so the fixed rows' "x of y used"
+    // is stale until it's redrawn as well.
+    renderFixedList();
+    renderBudgets();
     renderSummary();
   }
   toast("Expense added");
@@ -1285,6 +1289,8 @@ async function deleteDailyExpense(id) {
   dailyExpenses = dailyExpenses.filter((d) => d.id !== id);
   renderDailyList();
   renderCategoryBreakdown();
+  renderFixedList();
+  renderBudgets();
   renderSummary();
 }
 
