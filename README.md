@@ -69,6 +69,7 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_user_settings.sql](migration_user_settings.sql) — adds the "pay yourself first" savings target behind the safe-to-spend figure.
 - [migration_paid_status.sql](migration_paid_status.sql) — lets you tick fixed expenses and family maintenance off once paid.
 - [migration_fixed_category.sql](migration_fixed_category.sql) — lets a fixed expense act as a spending allowance for a daily category (e.g. Groceries).
+- [migration_debt.sql](migration_debt.sql) — adds debt payoff tracking (set a "total owed" on a fixed expense).
 
 A fresh setup via `schema.sql` already includes both — no migration needed.
 

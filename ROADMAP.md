@@ -15,6 +15,17 @@ Live at https://krishtafar123-cmyk-expense-tracker.vercel.app/, deployed from `m
 - **Polish** — WCAG AA contrast in both themes, screen-reader labelling throughout, loading feedback
 - **Theme** — light orange glass (translucent blurred cards over a warm gradient), light and dark
 
+## Picking up from here (last session)
+
+The user chose four features. Three are built and pushed:
+
+1. **Debt payoff** — done. `migration_debt.sql` run. Set a "total owed" via ✎ on a fixed expense; what's left is derived from paid ticks, not stored.
+2. **Auto-roll monthly setup** — done, no migration. Current month carries forward on load; a payday nudge fires if the fortnight has started with no pay logged.
+3. **Quick-add chips** — pushed, but **verification was cut short** — the suggestion logic (60-day window, 2+ occurrences, undo) has not been exercised end to end. Worth checking first.
+4. **Receipt photos — NOT STARTED.** The user also asked that a receipt be **deleted automatically once the reimbursement is cleared**. Needs a Supabase Storage bucket plus policies (a manual dashboard step for them), an upload control on the daily/work-purchase forms, and a delete hook in `toggleOwedSettled`.
+
+**Do not test against the user's live Supabase data.** A test-account sign-in failed silently once and an existing session for their real account was used instead, writing two rows into real data (removed). Verify logic in isolation — extract the function from the deployed `dashboard.js` and run it with stubbed dependencies, as the debt, carry-forward and cent-splitting tests do. If a live check is genuinely needed, ask first.
+
 ## Gotchas to know before changing things
 
 These caused real bugs or are easy to break:
