@@ -993,6 +993,36 @@ input, select { font-family: inherit; }
   font-size: 14px;
 }
 
+/* ---------- Quick add ---------- */
+.quick-add:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.quick-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  /* Comfortable as a tap target without dominating the card. */
+  min-height: 36px;
+}
+
+.quick-chip:hover { border-color: var(--primary); }
+.quick-chip:active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.quick-chip:disabled { opacity: 0.5; }
+
+.quick-chip-label { font-weight: 600; }
+.quick-chip-amount { color: var(--text-muted); }
+.quick-chip:active .quick-chip-amount { color: var(--on-primary-muted); }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
@@ -1006,4 +1036,17 @@ input, select { font-family: inherit; }
   font-size: 13px;
   box-shadow: var(--shadow);
   z-index: 100;
+  max-width: calc(100vw - 32px);
+}
+
+/* Sits on the toast's inverted background, so it can't use --primary. */
+.toast-action {
+  margin-left: 12px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
 }

@@ -6,12 +6,27 @@ const CATEGORIES = ["Food", "Groceries", "Transport", "Shopping", "Bills", "Heal
 const currencyFmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
 function fmt(n) { return currencyFmt.format(n || 0); }
 
-function toast(msg) {
+// `action` adds a button to the toast (used for Undo) and holds it on screen
+// longer, since it now needs reading and acting on rather than just noticing.
+function toast(msg, action) {
   const el = document.getElementById("toast");
-  el.textContent = msg;
+  el.textContent = "";
+  el.appendChild(document.createTextNode(msg));
+  if (action) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "toast-action";
+    btn.textContent = action.label;
+    btn.addEventListener("click", () => {
+      el.hidden = true;
+      clearTimeout(toast._t);
+      action.onClick();
+    });
+    el.appendChild(btn);
+  }
   el.hidden = false;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.hidden = true; }, 2500);
+  toast._t = setTimeout(() => { el.hidden = true; }, action ? 7000 : 2500);
 }
 
 // Wires up a form submit with the button disabled for the duration, so a
@@ -369,6 +384,7 @@ async function loadMonth() {
     renderStillToPay();
     renderDebts();
     renderDailyList();
+    renderQuickAdd();
     renderCategoryBreakdown();
     renderBudgets();
     renderOwed();
@@ -1071,6 +1087,86 @@ function renderSavingsList() {
   }
 }
 
+// ---------- Quick add ----------
+// The same few expenses get logged over and over. Offering them as one-tap
+// buttons — built from what's actually been logged, not a list to maintain —
+// turns the common case into a single tap. Undo makes that safe: a mistap
+// costs one more tap, not a trip to the list to delete a row.
+const QUICK_ADD_WINDOW_DAYS = 60;
+const QUICK_ADD_MAX = 6;
+
+function quickAddSuggestions() {
+  const cutoff = toDateStr(addDays(new Date(), -QUICK_ADD_WINDOW_DAYS));
+  const seen = {};
+  for (const d of allDailyExpenses) {
+    if (d.date < cutoff) continue;
+    const note = String(d.note || "").trim();
+    const amount = Number(d.amount);
+    if (!(amount > 0)) continue;
+    const key = `${d.category}|${amount.toFixed(2)}|${note.toLowerCase()}`;
+    if (!seen[key]) seen[key] = { category: d.category, amount, note, count: 0 };
+    seen[key].count++;
+  }
+  return Object.values(seen)
+    // Something logged once is a one-off, not a habit worth a button.
+    .filter((s) => s.count >= 2)
+    .sort((a, b) => b.count - a.count || b.amount - a.amount)
+    .slice(0, QUICK_ADD_MAX);
+}
+
+function renderQuickAdd() {
+  const box = document.getElementById("quick-add");
+  const suggestions = quickAddSuggestions();
+  box.textContent = "";
+
+  if (suggestions.length === 0) {
+    box.hidden = true;
+    return;
+  }
+
+  for (const s of suggestions) {
+    const label = s.note || s.category;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "quick-chip";
+    btn.innerHTML = `<span class="quick-chip-label">${escapeHtml(label)}</span><span class="quick-chip-amount">${fmt(s.amount)}</span>`;
+    btn.setAttribute("aria-label", `Log ${label}, ${fmt(s.amount)}, ${s.category}`);
+    btn.addEventListener("click", () => quickAdd(s, btn));
+    box.appendChild(btn);
+  }
+  box.hidden = false;
+}
+
+async function quickAdd(s, btn) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const date = toDateStr(new Date());
+    const { data, error } = await sb.from("daily_expenses")
+      .insert({ user_id: currentUser.id, date, category: s.category, amount: s.amount, note: s.note || null })
+      .select().single();
+    if (error) { console.error(error); toast("Couldn't add that"); return; }
+
+    if (date >= toDateStr(currentMonth) && date < toDateStr(monthEndExclusive(currentMonth))) {
+      dailyExpenses.unshift(data);
+      dailyExpenses.sort((a, b) => (a.date < b.date ? 1 : -1));
+      allDailyExpenses.unshift(data);
+      renderDailyList();
+      renderCategoryBreakdown();
+      renderFixedList();
+      renderBudgets();
+      renderSummary();
+    }
+
+    toast(`Added ${s.note || s.category} ${fmt(s.amount)}`, {
+      label: "Undo",
+      onClick: () => deleteDailyExpense(data.id),
+    });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- Daily expense date ----------
 // Defaults to today so logging an expense is just amount + category. The
 // picker stays available behind "Change" for back-dating something you forgot.
@@ -1419,12 +1515,14 @@ onSubmitLocked("daily-form", async () => {
   if (date >= toDateStr(currentMonth) && date < toDateStr(monthEndExclusive(currentMonth))) {
     dailyExpenses.unshift(data);
     dailyExpenses.sort((a, b) => (a.date < b.date ? 1 : -1));
+    allDailyExpenses.unshift(data);
     renderDailyList();
     renderCategoryBreakdown();
     // Daily spending draws down allowances, so the fixed rows' "x of y used"
     // is stale until it's redrawn as well.
     renderFixedList();
     renderBudgets();
+    renderQuickAdd();
     renderSummary();
   }
   toast("Expense added");
@@ -1434,10 +1532,15 @@ async function deleteDailyExpense(id) {
   const { error } = await sb.from("daily_expenses").delete().eq("id", id);
   if (error) { console.error(error); toast("Failed to delete"); return; }
   dailyExpenses = dailyExpenses.filter((d) => d.id !== id);
+  // The wide slice feeds the trend chart, the week-over-week insight and the
+  // quick-add suggestions, so it has to lose the row too — otherwise a deleted
+  // expense keeps influencing all three until the next reload.
+  allDailyExpenses = allDailyExpenses.filter((d) => d.id !== id);
   renderDailyList();
   renderCategoryBreakdown();
   renderFixedList();
   renderBudgets();
+  renderQuickAdd();
   renderSummary();
 }
 
