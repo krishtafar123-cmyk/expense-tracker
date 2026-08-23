@@ -343,6 +343,25 @@ async function loadMonth() {
 
     document.getElementById("copy-prompt").hidden = !!monthlyRow;
 
+    // A new month shouldn't need a button press. Deliberately limited to the
+    // current month: browsing to a future month must not quietly create rows
+    // there, and a past month left empty was presumably left empty on purpose.
+    const now = new Date();
+    const isCurrentMonth =
+      now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth();
+    if (isCurrentMonth && !monthlyRow && fixedExpenses.length === 0) {
+      const rolled = await setUpMonthFrom(
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+      );
+      if (rolled) {
+        // Fold the new rows into the wide slices, or the trend chart and debt
+        // payoff would ignore the month that was just created.
+        allFixedRows = allFixedRows.concat(fixedExpenses);
+        if (monthlyRow) allMonthlyRows = allMonthlyRows.concat([monthlyRow]);
+        allDebtRows = allDebtRows.concat(fixedExpenses.filter((f) => f.debt_total != null));
+      }
+    }
+
     renderSalaryList();
     renderSavingsList();
     renderFixedList();
@@ -741,30 +760,42 @@ function renderFixedList() {
   }
 }
 
-// ---------- Copy from previous month ----------
-// Only family maintenance + fixed expenses carry over — salary payments are
-// dated real-world events, so they never make sense to copy between months.
-document.getElementById("copy-prev-btn").addEventListener("click", async () => {
-  const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-  const prevKey = monthKey(prevMonth);
+// ---------- Carrying a month forward ----------
+// Family maintenance + fixed expenses carry over. Salary payments never do:
+// they're dated real-world events. Paid ticks never do either, so the new
+// month starts owing everything.
+//
+// debt_total DOES carry — without it, rolling into a new month would silently
+// turn a tracked debt back into an ordinary recurring cost.
+async function setUpMonthFrom(sourceMonth, { announce = true } = {}) {
+  const sourceKey = monthKey(sourceMonth);
+  const key = monthKey(currentMonth);
 
   const [prevMonthlyRes, prevFixedRes] = await Promise.all([
-    sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", prevKey).maybeSingle(),
-    sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", prevKey),
+    sb.from("monthly_data").select("*").eq("user_id", currentUser.id).eq("month", sourceKey).maybeSingle(),
+    sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).eq("month", sourceKey),
   ]);
 
-  const key = monthKey(currentMonth);
+  const prevFixed = prevFixedRes.data || [];
+  // Nothing worth carrying — don't create an empty month for no reason.
+  if (!prevMonthlyRes.data && prevFixed.length === 0) return false;
+
   const family = prevMonthlyRes.data ? prevMonthlyRes.data.family_maintenance : 0;
 
   const { data: newRow, error } = await sb.from("monthly_data")
     .insert({ user_id: currentUser.id, month: key, family_maintenance: family })
     .select().single();
-  if (error) { console.error(error); toast("Failed to copy"); return; }
+  if (error) { console.error(error); if (announce) toast("Couldn't carry the month forward"); return false; }
   monthlyRow = newRow;
 
-  const prevFixed = prevFixedRes.data || [];
   if (prevFixed.length > 0) {
-    const inserts = prevFixed.map((f) => ({ user_id: currentUser.id, month: key, name: f.name, amount: f.amount }));
+    const inserts = prevFixed.map((f) => ({
+      user_id: currentUser.id,
+      month: key,
+      name: f.name,
+      amount: f.amount,
+      debt_total: f.debt_total ?? null,
+    }));
     const { data: newFixed, error: fixedErr } = await sb.from("fixed_expenses").insert(inserts).select();
     if (fixedErr) console.error(fixedErr);
     fixedExpenses = newFixed || [];
@@ -773,12 +804,20 @@ document.getElementById("copy-prev-btn").addEventListener("click", async () => {
   document.getElementById("input-family").value = family;
   document.getElementById("copy-prompt").hidden = true;
   renderFixedList();
-  // The copied month starts unpaid, so the paid-status UI has to be redrawn
-  // too — otherwise it keeps showing the previous month's ticks.
+  // The new month starts unpaid, so the paid-status UI has to be redrawn too —
+  // otherwise it keeps showing the previous month's ticks.
   renderFamilyPaid();
   renderStillToPay();
+  renderDebts();
   renderSummary();
-  toast("Copied from previous month");
+  if (announce) {
+    toast(`${monthLabel(currentMonth)} set up from ${monthLabel(sourceMonth)}`);
+  }
+  return true;
+}
+
+document.getElementById("copy-prev-btn").addEventListener("click", () => {
+  setUpMonthFrom(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
 });
 
 // ---------- Inline editing ----------
@@ -2026,6 +2065,28 @@ function generateInsights() {
           tone: "positive",
           icon: "📉",
           text: `${fmt(thisWeek)} in the last 7 days, down ${Math.round(-change)}% on the 7 before (${fmt(weekBefore)}).`,
+        });
+      }
+    }
+  }
+
+  // 12. Payday has been and gone without the pay being logged. Everything else
+  // in the app is derived from salary payments, so a missed one quietly
+  // distorts the whole month — this is ranked top for that reason.
+  if (viewingCurrentMonth) {
+    const anchor = payAnchorDate();
+    if (anchor) {
+      const { start } = cycleContaining(today, anchor);
+      const daysSincePayday = Math.floor((today - start) / 86400000);
+      const loggedThisCycle = allSalaryPayments.some(
+        (p) => p.date >= toDateStr(start) && p.date <= toDateStr(today)
+      );
+      // A day's grace: pay often lands late in the day.
+      if (!loggedThisCycle && daysSincePayday >= 1 && daysSincePayday <= 6) {
+        insights.unshift({
+          tone: "warning",
+          icon: "💰",
+          text: `Payday was ${start.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" })} and no pay is logged yet — the month's figures will be off until it is.`,
         });
       }
     }
