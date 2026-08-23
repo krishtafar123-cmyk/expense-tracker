@@ -1835,7 +1835,88 @@ function generateInsights() {
     }
   }
 
-  return insights.slice(0, 5);
+  // ---- Real-time rules: about today and the days just gone, not the month
+  // in hindsight. These are ranked highest because they're the ones that can
+  // still change a decision you're about to make.
+
+  // 9. A category budget that won't last the month at the current rate. The
+  // date it runs dry is more use than the balance on its own.
+  if (viewingCurrentMonth && daysElapsed >= 3 && daysRemaining > 0) {
+    let soonest = null;
+    for (const cat of CATEGORIES) {
+      // An allowance (a fixed expense named after the category) takes
+      // precedence over a plain cap, since it's real reserved money.
+      const cap = budgetFixedFor(cat) || budgetFor(cat);
+      if (cap <= 0) continue;
+      const spent = spentInCategory(cat);
+      const left = cap - spent;
+      if (left <= 0) continue; // already over — rule 5 covers that
+      const perDay = spent / daysElapsed;
+      if (perDay <= 0) continue;
+      const daysOfCover = left / perDay;
+      if (daysOfCover >= daysRemaining) continue; // it'll last, no need to say so
+      if (!soonest || daysOfCover < soonest.daysOfCover) {
+        soonest = { cat, left, perDay, daysOfCover };
+      }
+    }
+    if (soonest) {
+      const runOut = addDays(today, Math.floor(soonest.daysOfCover));
+      const safePerDay = soonest.left / daysRemaining;
+      insights.unshift({
+        tone: "warning",
+        icon: "⏳",
+        text: `${soonest.cat} runs out around ${runOut.toLocaleDateString("en-AU", { day: "numeric", month: "short" })} at ${fmt(soonest.perDay)}/day. ${fmt(soonest.left)} left — about ${fmt(safePerDay)}/day to reach month end.`,
+      });
+    }
+  }
+
+  // 10. Today standing out against a normal day. Compared against the days
+  // before today, so a big purchase isn't diluted by its own inclusion.
+  if (viewingCurrentMonth && daysElapsed >= 4) {
+    const todayStr = toDateStr(today);
+    const todaySpent = dailyExpenses
+      .filter((d) => d.date === todayStr)
+      .reduce((s, d) => s + Number(d.amount), 0);
+    const priorDays = daysElapsed - 1;
+    const priorAvg = priorDays > 0 ? (dailyTotal - todaySpent) / priorDays : 0;
+    if (todaySpent > 0 && priorAvg > 0 && todaySpent >= priorAvg * 2) {
+      insights.unshift({
+        tone: "warning",
+        icon: "📍",
+        text: `${fmt(todaySpent)} spent today — about ${(todaySpent / priorAvg).toFixed(1)}× your usual ${fmt(priorAvg)} a day.`,
+      });
+    }
+  }
+
+  // 11. The last seven days against the seven before. A shorter horizon than
+  // month-vs-month, so a change in habit shows up while it still matters.
+  if (viewingCurrentMonth) {
+    const inRange = (from, to) => allDailyExpenses
+      .filter((d) => d.date >= toDateStr(from) && d.date < toDateStr(to))
+      .reduce((s, d) => s + Number(d.amount), 0);
+    const tomorrow = addDays(today, 1);
+    const thisWeek = inRange(addDays(tomorrow, -7), tomorrow);
+    const weekBefore = inRange(addDays(tomorrow, -14), addDays(tomorrow, -7));
+
+    if (weekBefore >= 20 && thisWeek > 0) {
+      const change = ((thisWeek - weekBefore) / weekBefore) * 100;
+      if (change >= 25) {
+        insights.push({
+          tone: "warning",
+          icon: "📈",
+          text: `${fmt(thisWeek)} in the last 7 days, up ${Math.round(change)}% on the 7 before (${fmt(weekBefore)}).`,
+        });
+      } else if (change <= -25) {
+        insights.push({
+          tone: "positive",
+          icon: "📉",
+          text: `${fmt(thisWeek)} in the last 7 days, down ${Math.round(-change)}% on the 7 before (${fmt(weekBefore)}).`,
+        });
+      }
+    }
+  }
+
+  return insights.slice(0, 6);
 }
 
 // ---------- Today's spending (auto-resets at midnight since it's date-filtered) ----------
