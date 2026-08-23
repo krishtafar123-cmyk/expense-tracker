@@ -400,29 +400,13 @@ function splitAmount(total, parts) {
   return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 100);
 }
 
-// Typing a name that matches a category is almost always meant as an
-// allowance for it, so preselect that — still overridable.
-document.getElementById("fixed-name").addEventListener("input", (e) => {
-  const select = document.getElementById("fixed-category");
-  if (select.dataset.touched === "1") return;
-  const typed = e.target.value.trim().toLowerCase();
-  const match = CATEGORIES.find((c) => c.toLowerCase() === typed);
-  select.value = match || "";
-});
-
-document.getElementById("fixed-category").addEventListener("change", (e) => {
-  e.target.dataset.touched = "1";
-});
-
 onSubmitLocked("fixed-form", async () => {
   const nameInput = document.getElementById("fixed-name");
   const amountInput = document.getElementById("fixed-amount");
   const splitInput = document.getElementById("fixed-split");
-  const categoryInput = document.getElementById("fixed-category");
   const name = nameInput.value.trim();
   const amount = parseFloat(amountInput.value);
   const parts = Math.max(1, parseInt(splitInput.value, 10) || 1);
-  const category = categoryInput.value || null;
   if (!name || isNaN(amount)) return;
 
   await ensureMonthlyRow();
@@ -435,7 +419,6 @@ onSubmitLocked("fixed-form", async () => {
     month: key,
     name: parts > 1 ? `${name} (${i + 1}/${parts})` : name,
     amount: amt,
-    category,
   }));
 
   const { data, error } = await sb.from("fixed_expenses").insert(rows).select();
@@ -445,8 +428,6 @@ onSubmitLocked("fixed-form", async () => {
   nameInput.value = "";
   amountInput.value = "";
   splitInput.value = "1";
-  categoryInput.value = "";
-  delete categoryInput.dataset.touched;
   renderFixedList();
   renderStillToPay();
   renderSummary();
@@ -462,20 +443,32 @@ async function deleteFixedExpense(id) {
   renderSummary();
 }
 
-// ---------- Allowances ----------
-// A fixed expense linked to a category is an envelope: the amount is reserved
-// up front and daily spending in that category draws it down, rather than
-// adding on top of it. Without this the same money is deducted twice — once as
-// the allowance and again as the spending.
+// ---------- Category budgets held as fixed expenses ----------
+// A fixed expense named after a daily category (Groceries, Food, …) doubles as
+// the budget for it: the amount is set aside up front and spending in that
+// category comes out of it, rather than being charged on top. Without this the
+// same money is deducted twice — once as the budget, once as the spending.
+//
+// The link is derived from the name rather than stored, so there's nothing to
+// configure and nothing hidden: what drives the behaviour is the row's own
+// label. A split row like "Groceries (1/2)" still counts.
+function categoryOfFixed(row) {
+  const base = String(row.name || "")
+    .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, "")
+    .trim()
+    .toLowerCase();
+  return CATEGORIES.find((c) => c.toLowerCase() === base) || null;
+}
+
 function spentInCategory(category) {
   return dailyExpenses
     .filter((d) => d.category === category)
     .reduce((s, d) => s + Number(d.amount), 0);
 }
 
-function allowanceFor(category) {
+function budgetFixedFor(category) {
   return fixedExpenses
-    .filter((f) => f.category === category)
+    .filter((f) => categoryOfFixed(f) === category)
     .reduce((s, f) => s + Number(f.amount), 0);
 }
 
@@ -495,10 +488,11 @@ function fixedReserved() {
   let reserved = 0;
   const seen = new Set();
   for (const f of fixedExpenses) {
-    if (!f.category) { reserved += Number(f.amount); continue; }
-    if (seen.has(f.category)) continue; // allowances are summed per category
-    seen.add(f.category);
-    reserved += Math.max(0, allowanceFor(f.category) - spentInCategory(f.category));
+    const cat = categoryOfFixed(f);
+    if (!cat) { reserved += Number(f.amount); continue; }
+    if (seen.has(cat)) continue; // rows sharing a category are summed once
+    seen.add(cat);
+    reserved += Math.max(0, budgetFixedFor(cat) - spentInCategory(cat));
   }
   return reserved;
 }
@@ -603,14 +597,17 @@ function renderFixedList() {
       ? "paid " + new Date(f.paid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
       : (f.paid ? "paid" : "");
 
-    // For an allowance, how much of it has been used is the useful detail —
-    // several rows can share a category, so this reports the category total.
+    // What's left to spend is the number that actually guides a decision, so
+    // that leads. Several rows can share a category, so this is the category
+    // total rather than this row alone.
     let allowanceLabel = "";
-    if (f.category) {
-      const used = spentInCategory(f.category);
-      const total = allowanceFor(f.category);
-      const over = used > total;
-      allowanceLabel = `<span class="item-sub ${over ? "negative" : ""}">${fmt(used)} of ${fmt(total)} used${over ? " — over" : ""}</span>`;
+    const cat = categoryOfFixed(f);
+    if (cat) {
+      const total = budgetFixedFor(cat);
+      const left = total - spentInCategory(cat);
+      allowanceLabel = left >= 0
+        ? `<span class="item-sub">${fmt(left)} left of ${fmt(total)}</span>`
+        : `<span class="item-sub negative">${fmt(-left)} over ${fmt(total)}</span>`;
     }
 
     li.innerHTML = `
@@ -632,10 +629,6 @@ function renderFixedList() {
     attachEdit(li, f, [
       { key: "name", type: "text", required: true },
       { key: "amount", type: "number", required: true },
-      { key: "category", type: "select", nullable: true, options: [
-        { value: "", label: "Not an allowance" },
-        ...CATEGORIES.map((c) => ({ value: c, label: "Allowance for " + c })),
-      ] },
     ], "fixed_expenses", renderFixedList);
     ul.appendChild(li);
   }
