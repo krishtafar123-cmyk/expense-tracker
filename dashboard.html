@@ -213,6 +213,20 @@
           <ul id="daily-list" class="item-list daily-list"></ul>
         </section>
 
+        <section class="card" id="debt-card" hidden>
+          <h2><span aria-hidden="true">📉</span> Debt Payoff</h2>
+
+          <div class="savings-balance">
+            <div class="summary-label">Still owed</div>
+            <div class="savings-balance-value" id="debt-total">$0</div>
+            <div class="item-sub" id="debt-progress"></div>
+          </div>
+
+          <ul id="debt-list" class="budget-list"></ul>
+
+          <p class="card-hint">A fixed expense becomes a debt once you set a <strong>total owed</strong> on it — tap ✎ on the row. What's left is worked out from the months you've ticked as paid, so it can't drift.</p>
+        </section>
+
         <section class="card">
           <h2><span aria-hidden="true">🎯</span> Category Budgets</h2>
           <p class="card-hint">A monthly cap per category. Leave blank for no limit — bars show what you've spent this month.</p>

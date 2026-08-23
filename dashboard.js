@@ -42,6 +42,10 @@ let prevMonthDailyExpenses = [];
 let savingsTransactions = []; // all-time, for the running balance
 let categoryBudgets = [];
 let budgetsUnavailable = false;
+// Debt rows across every month, not just the visible one — a payoff spans the
+// whole life of the debt.
+let allDebtRows = [];
+let debtsUnavailable = false;
 // Money owed back to you. All-time and not month-scoped: a purchase from two
 // months ago still needs claiming today, so it has to stay visible.
 let reimbursements = [];
@@ -281,9 +285,12 @@ async function loadMonth() {
       runQuery("category_budgets", () => sb.from("category_budgets").select("*").eq("user_id", currentUser.id)),
       runQuery("reimbursements", () => sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
       runQuery("user_settings", () => sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle()),
+      // Deliberately not limited to the trend window — a payoff spans the
+      // whole life of the debt, which can be longer than six months.
+      runQuery("debts", () => sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).not("debt_total", "is", null)),
     ]);
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, settingsRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, settingsRes, debtRes] = results;
 
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
@@ -317,6 +324,11 @@ async function loadMonth() {
     savePerCycle = settingsRes.data ? Number(settingsRes.data.save_per_cycle) : 0;
     document.getElementById("save-per-cycle").value = savePerCycle > 0 ? savePerCycle : "";
 
+    // A missing debt_total column just means no debts are being tracked.
+    debtsUnavailable = !!debtRes.error;
+    if (debtRes.error) console.error(debtRes.error);
+    allDebtRows = debtRes.data || [];
+
     const curStart = toDateStr(currentMonth);
     const prevStart = toDateStr(prevMonth);
 
@@ -336,6 +348,7 @@ async function loadMonth() {
     renderFixedList();
     renderFamilyPaid();
     renderStillToPay();
+    renderDebts();
     renderDailyList();
     renderCategoryBreakdown();
     renderBudgets();
@@ -497,6 +510,97 @@ function fixedReserved() {
   return reserved;
 }
 
+// ---------- Debts ----------
+// Zip, Latitude, a loan — these look like fixed costs but they end. Storing
+// the original balance and deriving what's left from the months ticked as paid
+// means there's no running balance that can drift out of step with the ticks,
+// and un-ticking a month corrects itself.
+//
+// Rows are matched by name across months, the same way a split row's parts are.
+function debtBaseName(row) {
+  return String(row.name || "").replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, "").trim();
+}
+
+// Every debt, keyed by name, computed over all months not just the visible one.
+function debtSummaries() {
+  const byName = {};
+  for (const r of allDebtRows) {
+    const key = debtBaseName(r);
+    if (!key) continue;
+    if (!byName[key]) byName[key] = { name: key, total: 0, paid: 0, monthly: 0, latestMonth: "" };
+    const d = byName[key];
+    // The most recently recorded total wins, so correcting it later sticks.
+    if (r.month >= d.latestMonth) {
+      d.latestMonth = r.month;
+      d.total = Number(r.debt_total) || 0;
+    }
+    if (r.paid) d.paid += Number(r.amount);
+  }
+
+  // The monthly payment is whatever this month's rows for that debt add up to,
+  // falling back to the newest month on record if this month has none.
+  for (const d of Object.values(byName)) {
+    const thisMonth = fixedExpenses.filter((f) => debtBaseName(f) === d.name);
+    const source = thisMonth.length
+      ? thisMonth
+      : allDebtRows.filter((r) => debtBaseName(r) === d.name && r.month === d.latestMonth);
+    d.monthly = source.reduce((s, r) => s + Number(r.amount), 0);
+    d.remaining = Math.max(0, d.total - d.paid);
+    d.monthsLeft = d.monthly > 0 ? Math.ceil(d.remaining / d.monthly) : null;
+    d.clearedOn = null;
+    if (d.monthsLeft !== null) {
+      // Months still to pay counted from the current month.
+      const base = firstOfMonth(new Date());
+      d.clearedOn = new Date(base.getFullYear(), base.getMonth() + Math.max(0, d.monthsLeft - 1), 1);
+    }
+  }
+  return Object.values(byName).filter((d) => d.total > 0);
+}
+
+function renderDebts() {
+  const card = document.getElementById("debt-card");
+  const list = document.getElementById("debt-list");
+  const debts = debtSummaries();
+
+  if (debts.length === 0) {
+    card.hidden = true;
+    return;
+  }
+
+  const totalLeft = debts.reduce((s, d) => s + d.remaining, 0);
+  const totalOriginal = debts.reduce((s, d) => s + d.total, 0);
+  document.getElementById("debt-total").textContent = fmt(totalLeft);
+  document.getElementById("debt-progress").textContent = totalOriginal > 0
+    ? `${fmt(totalOriginal - totalLeft)} of ${fmt(totalOriginal)} paid off`
+    : "";
+
+  list.innerHTML = "";
+  // Closest to being cleared first — the finish line you'll reach soonest.
+  const sorted = [...debts].sort((a, b) => a.remaining - b.remaining);
+  for (const d of sorted) {
+    const pct = d.total > 0 ? Math.min(100, ((d.total - d.remaining) / d.total) * 100) : 0;
+    const done = d.remaining <= 0;
+    const when = done
+      ? "Cleared"
+      : d.clearedOn
+        ? "Clear by " + d.clearedOn.toLocaleDateString("en-AU", { month: "short", year: "numeric" })
+        : "No payment set";
+
+    const li = document.createElement("li");
+    li.className = "budget-row";
+    li.innerHTML = `
+      <div class="budget-head">
+        <span class="budget-name">${escapeHtml(d.name)}</span>
+        <span class="budget-figures ${done ? "positive" : ""}">${done ? "Cleared" : fmt(d.remaining) + " left"}</span>
+      </div>
+      <div class="budget-track" aria-hidden="true"><div class="budget-fill ${done ? "is-done" : ""}" style="width:${pct}%"></div></div>
+      <span class="item-sub">${when}${d.monthly > 0 && !done ? ` · ${fmt(d.monthly)}/month` : ""}</span>
+    `;
+    list.appendChild(li);
+  }
+  card.hidden = false;
+}
+
 // ---------- Paid status ----------
 // Ticking something off is a record of what's actually left your account, not
 // a change to the maths: rent has to be reserved for whether or not it's been
@@ -629,7 +733,10 @@ function renderFixedList() {
     attachEdit(li, f, [
       { key: "name", type: "text", required: true },
       { key: "amount", type: "number", required: true },
-    ], "fixed_expenses", renderFixedList);
+      // Setting this turns the row into a tracked debt; clearing it makes it an
+      // ordinary recurring cost again.
+      { key: "debt_total", type: "number", nullable: true, placeholder: "Total owed (debts only)" },
+    ], "fixed_expenses", () => loadMonth());
     ul.appendChild(li);
   }
 }
@@ -758,8 +865,16 @@ function attachEdit(li, item, spec, table, rerender) {
       const patch = {};
       for (const el of form.querySelectorAll("[data-key]")) {
         const field = spec.find((f) => f.key === el.dataset.key);
-        let value = field.type === "number" ? parseFloat(el.value) || 0 : el.value.trim();
-        if (field.nullable && value === "") value = null;
+        // A blank nullable number has to become null, not 0 — for a field like
+        // "total owed" those mean different things: no debt vs a debt of zero.
+        let value;
+        if (field.type === "number") {
+          const raw = el.value.trim();
+          value = raw === "" && field.nullable ? null : (parseFloat(raw) || 0);
+        } else {
+          value = el.value.trim();
+          if (field.nullable && value === "") value = null;
+        }
         patch[field.key] = value;
       }
 

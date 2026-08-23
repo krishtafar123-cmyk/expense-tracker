@@ -736,6 +736,8 @@ input, select { font-family: inherit; }
   color: var(--green);
 }
 
+.budget-fill.is-done { background: var(--green); }
+
 /* ---------- Paid status ---------- */
 .still-to-pay {
   background: var(--input-bg);
