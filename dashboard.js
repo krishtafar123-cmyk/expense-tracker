@@ -255,6 +255,9 @@ function hideLoadError() {
 function blankSummary() {
   const ids = ["sum-salary", "sum-fixed", "sum-family", "sum-daily", "sum-savings", "sum-remaining", "sum-today"];
   for (const id of ids) document.getElementById(id).textContent = "—";
+  // A stale figure in the topbar would keep reading as current long after the
+  // load failed, and it's the one number sitting on screen at all times.
+  document.getElementById("topbar-remaining").hidden = true;
 }
 
 document.getElementById("load-retry").addEventListener("click", loadMonth);
@@ -2302,6 +2305,13 @@ function renderSummary() {
   const remainingEl = document.getElementById("sum-remaining");
   remainingEl.textContent = fmt(remaining);
   remainingEl.classList.toggle("negative", remaining < 0);
+
+  // Same figure in the sticky topbar, so it stays on screen while you're
+  // logging an expense on another tab.
+  const topRemaining = document.getElementById("topbar-remaining-value");
+  topRemaining.textContent = fmt(remaining);
+  topRemaining.classList.toggle("negative", remaining < 0);
+  document.getElementById("topbar-remaining").hidden = false;
 
   renderTodaySummary();
   renderInsights();

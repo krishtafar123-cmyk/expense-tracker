@@ -1221,3 +1221,35 @@ input, select { font-family: inherit; }
   .toast { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
   .update-banner { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ---------- Remaining in the topbar ---------- */
+/* Scoped to :not([hidden]) so the hidden attribute still wins over display. */
+.topbar-remaining:not([hidden]) { display: flex; }
+.topbar-remaining {
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+}
+
+.topbar-remaining-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.topbar-remaining-value { font-size: 16px; font-weight: 700; }
+
+@media (max-width: 800px) {
+  /* The topbar is sticky, so every row it gains is permanently lost from the
+     content area — and there's a fixed tab bar at the bottom as well. The
+     email is the one thing here you already know, so it gives up its space
+     to the number you actually want on screen. */
+  #user-email { display: none; }
+  .topbar { padding: 10px 14px; gap: 8px; }
+  .topbar-remaining { padding: 4px 10px; gap: 6px; }
+}

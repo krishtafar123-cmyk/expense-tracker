@@ -23,6 +23,13 @@
         <span id="month-label" class="month-label">August 2026</span>
         <button id="month-next" class="icon-btn" aria-label="Next month">›</button>
       </div>
+      <!-- Remaining lives on the Home tab too, but it's the number you want
+           while logging on another tab, so it also rides the sticky topbar.
+           Hidden until the first load so it can't flash a misleading $0. -->
+      <div class="topbar-remaining" id="topbar-remaining" hidden>
+        <span class="topbar-remaining-label">Remaining</span>
+        <span class="topbar-remaining-value" id="topbar-remaining-value">$0</span>
+      </div>
       <div class="topbar-user">
         <span id="user-email"></span>
         <button id="export-btn" class="btn btn-ghost" title="Download all your data as a CSV">Export</button>

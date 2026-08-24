@@ -89,6 +89,8 @@ The dashboard is split into five tabs, so you're never scrolling past eleven car
 
 The month arrows at the top apply to every tab. Whichever tab you were last on is remembered, so reopening the app puts you back where you were rather than always on Home.
 
+**Remaining also sits in the top bar**, which stays put as you scroll, so the number you care about is on screen while you're logging an expense on any tab. It turns red if you go under. On a phone the top bar hides your email address to make room — you're the only one using it, and that row is more usefully spent on the money.
+
 ## Money owed — the three kinds, and why they're separate
 
 The app tracks three different things that all sound like "debt". They behave differently on purpose:
