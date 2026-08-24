@@ -2394,6 +2394,30 @@ function renderInsights() {
   card.hidden = false;
 }
 
+// Don't nag in the first days of a month — one quiet day at the start isn't
+// evidence of anything, and a warning that fires every 1st would train you to
+// ignore it.
+const MIN_DAYS_BEFORE_GAP_NUDGE = 4;
+const MAX_GAP_DAYS_LISTED = 3;
+
+// Days this month, up to and including today, with no daily expense against
+// them. Today counts only once it's late enough that an empty day is more
+// likely forgotten than genuinely empty — nobody has logged breakfast at 7am.
+const GAP_TODAY_COUNTS_AFTER_HOUR = 20;
+
+function unloggedDays() {
+  const today = new Date();
+  const logged = new Set(dailyExpenses.map((d) => d.date));
+  const lastDay = today.getHours() >= GAP_TODAY_COUNTS_AFTER_HOUR ? today.getDate() : today.getDate() - 1;
+
+  const gaps = [];
+  for (let day = 1; day <= lastDay; day++) {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    if (!logged.has(toDateStr(d))) gaps.push(d);
+  }
+  return gaps;
+}
+
 function generateInsights() {
   const insights = [];
 
@@ -2410,6 +2434,31 @@ function generateInsights() {
   const totalDays = daysInMonth(currentMonth);
   const daysElapsed = viewingCurrentMonth ? today.getDate() : (currentMonth < firstOfMonth(today) ? totalDays : 0);
   const daysRemaining = totalDays - daysElapsed;
+
+  // 0. Days with nothing logged. Ranked above everything else because it isn't
+  // an observation about your spending — it's a warning that every other
+  // number here is missing something. A quiet gap silently overstates
+  // Remaining and drags every average down, and the app otherwise has no way
+  // of telling "spent nothing" apart from "forgot to log".
+  //
+  // Only days that have already passed count, and only in the month you're
+  // actually in; a past month left empty was presumably left empty on purpose.
+  if (viewingCurrentMonth && daysElapsed >= MIN_DAYS_BEFORE_GAP_NUDGE) {
+    const gaps = unloggedDays();
+    if (gaps.length > 0) {
+      const shown = gaps.slice(-MAX_GAP_DAYS_LISTED)
+        .map((d) => d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }));
+      const more = gaps.length - shown.length;
+      const list = more > 0 ? shown.join(", ") + " and " + more + " more" : shown.join(", ");
+      insights.push({
+        tone: "warning",
+        icon: "📝",
+        text: gaps.length === 1
+          ? `Nothing logged for ${list}. If you did spend that day, these figures are low.`
+          : `${gaps.length} days this month have nothing logged (${list}). Anything spent on those days is missing from every figure here.`,
+      });
+    }
+  }
 
   // 1. Already over budget — highest priority.
   if (remaining < 0 && salary > 0) {

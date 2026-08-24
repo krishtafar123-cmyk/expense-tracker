@@ -64,7 +64,11 @@ These caused real bugs or are easy to break:
 
 Roughly in order of value for how this app is actually used:
 
-**Offline entry** — the service worker caches the app shell, so the app *opens* offline, but adding an expense still needs the network. Queueing writes locally and syncing on reconnect is the main missing piece for logging things out and about.
+**Offline entry** — the service worker caches the app shell, so the app *opens* offline, but adding an expense still needs the network. Queueing writes locally and syncing on reconnect is the main missing piece for logging things out and about. Worth noting this is also the most likely *cause* of the logging gaps the nudge now reports.
+
+**Per-category history** — the trend chart shows total spending per month, so a category creeping up is invisible. Analysing the user's real August export made the case: Food was 100% coffee and takeaway, and coffee alone ran at ~$6.50/day, which no single month would ever flag as wrong.
+
+**Payoff tracking for personal debts** — `personal_debts` records the amount and nothing else. The user is carrying two IOUs worth ~3.3x their monthly income with no schedule or progress view. `debt_total` already does this job for fixed expenses.
 
 **Receipts, second pass**
 - A receipt can only be attached while *creating* a row. Forget one, or have an upload fail, and the only way back is to delete the expense and re-add it. Attaching from an existing row via ✎ is the obvious gap.
