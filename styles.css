@@ -1147,3 +1147,77 @@ input, select { font-family: inherit; }
   font-size: 16px;
 }
 .receipt-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+/* ---------- Tabs ---------- */
+/* Scoped to :not([hidden]) so the hidden attribute still wins over display —
+   these panels are toggled constantly. */
+.tab-panel:not([hidden]) { display: block; }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  /* Comfortable tap target on a phone. */
+  min-height: 44px;
+}
+.tab:hover { color: var(--text); background: var(--input-bg); }
+.tab[aria-selected="true"] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.tab-icon { font-size: 16px; line-height: 1; }
+
+/* On a phone the bar moves to the bottom, where a thumb actually reaches,
+   and the labels stack under the icons to fit five across. */
+@media (max-width: 800px) {
+  .tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 150;
+    margin: 0;
+    gap: 0;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    /* Clears the iPhone home indicator. */
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .tab {
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+    padding: 7px 2px;
+    border-radius: 8px;
+  }
+  .tab-icon { font-size: 19px; }
+
+  /* Room for the fixed bar, so the last card isn't trapped underneath it. */
+  .content { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+  /* The toast and the update banner both live at the bottom too — lift them
+     above the bar rather than letting them land on it. */
+  .toast { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .update-banner { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}

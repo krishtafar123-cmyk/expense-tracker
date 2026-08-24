@@ -156,7 +156,67 @@ function startApp() {
   document.getElementById("work-date").value = toDateStr(new Date());
   document.getElementById("roommate-date").value = toDateStr(new Date());
   document.getElementById("iou-date").value = toDateStr(new Date());
+  restoreTab();
   loadMonth();
+}
+
+// ---------- Tabs ----------
+// Twelve cards on one page meant scrolling past eleven things to reach the
+// twelfth. These are panels within the one page rather than separate HTML
+// files on purpose: a real page load would re-check auth and re-run every
+// query on each switch, turning an instant tap into a spinner. Everything is
+// already loaded, so switching is just which panel is visible.
+const TAB_KEY = "expensetracker_tab";
+const TABS = ["home", "monthly", "spending", "owed", "savings"];
+
+function showTab(name, { focus = false, remember = true } = {}) {
+  if (!TABS.includes(name)) name = "home";
+
+  for (const t of TABS) {
+    const tab = document.getElementById("tab-" + t);
+    const panel = document.getElementById("panel-" + t);
+    const on = t === name;
+    tab.setAttribute("aria-selected", on ? "true" : "false");
+    // Roving tabindex: only the selected tab is in the tab order, so Tab moves
+    // past the bar rather than through all five buttons.
+    tab.tabIndex = on ? 0 : -1;
+    panel.hidden = !on;
+  }
+
+  if (focus) document.getElementById("tab-" + name).focus();
+  if (remember) {
+    try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* private mode */ }
+  }
+  // A tall panel left the page scrolled halfway down; the next panel would
+  // otherwise open in the middle of itself.
+  window.scrollTo(0, 0);
+}
+
+for (const t of TABS) {
+  document.getElementById("tab-" + t).addEventListener("click", () => showTab(t));
+}
+
+document.querySelector(".tabs").addEventListener("keydown", (e) => {
+  const i = TABS.indexOf(
+    (document.activeElement && document.activeElement.dataset && document.activeElement.dataset.panel) || ""
+  );
+  if (i === -1) return;
+  let next = null;
+  if (e.key === "ArrowRight") next = TABS[(i + 1) % TABS.length];
+  else if (e.key === "ArrowLeft") next = TABS[(i - 1 + TABS.length) % TABS.length];
+  else if (e.key === "Home") next = TABS[0];
+  else if (e.key === "End") next = TABS[TABS.length - 1];
+  if (!next) return;
+  e.preventDefault();
+  showTab(next, { focus: true });
+});
+
+// Restore whichever tab was last open, so reopening the app lands where you
+// left it rather than always on Home.
+function restoreTab() {
+  let saved = null;
+  try { saved = localStorage.getItem(TAB_KEY); } catch (e) { /* private mode */ }
+  showTab(saved || "home", { remember: false });
 }
 
 // ---------- Month navigation ----------

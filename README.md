@@ -75,6 +75,20 @@ If you set this up before these features existed, run these once each in Supabas
 
 A fresh setup via `schema.sql` already includes all of these — no migration needed.
 
+## Getting around
+
+The dashboard is split into five tabs, so you're never scrolling past eleven cards to reach the twelfth. On a phone they sit in a bar along the bottom, within thumb reach; on a wider screen they run across the top.
+
+| Tab | What's on it |
+|---|---|
+| **🏠 Home** | Your totals including **Remaining**, this pay period, insights, the 6-month chart |
+| **📋 Monthly** | Salary payments, monthly setup (family maintenance + fixed expenses), debt payoff |
+| **🧾 Spending** | Daily expenses and category budgets |
+| **🤝 Owed** | Work purchases, lent to roommate, money you owe |
+| **🏦 Savings** | Deposits, withdrawals and your running balance |
+
+The month arrows at the top apply to every tab. Whichever tab you were last on is remembered, so reopening the app puts you back where you were rather than always on Home.
+
 ## Money owed — the three kinds, and why they're separate
 
 The app tracks three different things that all sound like "debt". They behave differently on purpose:
