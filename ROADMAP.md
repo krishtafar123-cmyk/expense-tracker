@@ -24,6 +24,10 @@ All four features the user chose are now built:
 3. **Quick-add chips** — done and now verified. The suggestion logic was exercised against stubbed data (threshold, 60-day boundary, grouping, sort/cap, undo): all passing. Verification turned up one real bug, now fixed — chips rendered while viewing a *future* month, where a tap logs to today and so looked like a no-op. `renderQuickAdd` now bails unless you're viewing the month containing today.
 4. **Receipt photos** — done, and `migration_receipts.sql` has been run. If a photo ever fails to attach, the expense itself still saves and the message names the migration.
 
+Added since, on request:
+
+5. **Money I Owe** (`personal_debts`) — the user owed a colleague and a manager, and the app only tracked money owed *to* them. **`migration_personal_debts.sql` needs running.** They chose "counts only when repaid" over deducting it up front, and one card with a free-text name over fixed per-person cards. See gotcha 12 for the rule that matters.
+
 ### What receipts look like in the code
 
 - `migration_receipts.sql` adds `receipt_path` to `daily_expenses` and `reimbursements`, and creates the private `receipts` bucket **and its policies in SQL** — deliberately, so the user doesn't have to click through the Storage dashboard.
@@ -51,8 +55,9 @@ These caused real bugs or are easy to break:
 9. **Escaping** — `escapeHtml()` does not escape quotes. Anything interpolated into an HTML *attribute* needs `escapeAttr()`.
 10. **List rows are a grid, not `space-between` flex.** With three flex children the free space gets distributed *around* the amount, so amounts drift horizontally with the length of the name and never form a column. Keep the fixed money column.
 11. **Reimbursements must never enter a spending total.** Work purchases and roommate loans are money owed *back* to you; they are excluded from Remaining, the trend chart, budgets and every spending insight by living in their own table. Don't "helpfully" fold them in.
-12. **Anything "right now" must check it's being viewed in the current month.** Quick-add chips and the pay-cycle card both act on *today*, so in another month they'd either mislead or silently do nothing. Both use the same `viewingCurrentMonth` check. A past month often hides such things by accident (no recent data); a future month does not.
-13. **A file in Storage and a path in a row can disagree.** Always update the row first and delete the object second, so a failure leaves a harmless orphan rather than a row pointing at a file that's gone. Deletes are best-effort and must never block the thing the user actually asked for.
+12. **`personal_debts` is the exact opposite of `reimbursements`, and the one "owed" table that IS spending.** Money you owe a person costs nothing while outstanding, then counts in full in the month it's repaid — so `repaid_on` decides the month, never `date`. Remaining and the trend chart both subtract it and must stay in step; if you add another spending view, it belongs there too. Keep the two tables apart: summing them would net off two things that have nothing to do with each other.
+13. **Anything "right now" must check it's being viewed in the current month.** Quick-add chips and the pay-cycle card both act on *today*, so in another month they'd either mislead or silently do nothing. Both use the same `viewingCurrentMonth` check. A past month often hides such things by accident (no recent data); a future month does not.
+14. **A file in Storage and a path in a row can disagree.** Always update the row first and delete the object second, so a failure leaves a harmless orphan rather than a row pointing at a file that's gone. Deletes are best-effort and must never block the thing the user actually asked for.
 
 ## Ideas not built yet
 

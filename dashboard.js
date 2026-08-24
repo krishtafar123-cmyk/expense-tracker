@@ -65,6 +65,12 @@ let debtsUnavailable = false;
 // months ago still needs claiming today, so it has to stay visible.
 let reimbursements = [];
 let reimbursementsUnavailable = false;
+// Money YOU owe other people — the mirror of `reimbursements`, and separate
+// from it so the two directions can never be summed together. Also all-time:
+// an IOU from two months ago is still owed today. Unlike a reimbursement,
+// paying one of these back IS spending, in the month you actually paid it.
+let personalDebts = [];
+let personalDebtsUnavailable = false;
 // "Pay yourself first" target, held aside before anything is called spendable.
 let savePerCycle = 0;
 let settingsUnavailable = false;
@@ -149,6 +155,7 @@ function startApp() {
   document.getElementById("savings-date").value = toDateStr(new Date());
   document.getElementById("work-date").value = toDateStr(new Date());
   document.getElementById("roommate-date").value = toDateStr(new Date());
+  document.getElementById("iou-date").value = toDateStr(new Date());
   loadMonth();
 }
 
@@ -299,13 +306,14 @@ async function loadMonth() {
       runQuery("savings_transactions", () => sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
       runQuery("category_budgets", () => sb.from("category_budgets").select("*").eq("user_id", currentUser.id)),
       runQuery("reimbursements", () => sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
+      runQuery("personal_debts", () => sb.from("personal_debts").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
       runQuery("user_settings", () => sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle()),
       // Deliberately not limited to the trend window — a payoff spans the
       // whole life of the debt, which can be longer than six months.
       runQuery("debts", () => sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).not("debt_total", "is", null)),
     ]);
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, settingsRes, debtRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, iouRes, settingsRes, debtRes] = results;
 
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
@@ -332,6 +340,14 @@ async function loadMonth() {
     reimbursementsUnavailable = !!owedRes.error;
     if (owedRes.error) console.error(owedRes.error);
     reimbursements = owedRes.data || [];
+
+    // Money you owe does feed a total (Remaining, once repaid), so a missing
+    // table can't just be shrugged off the way reimbursements can — but it
+    // degrades to "nothing owed", which is what an unrun migration means
+    // anyway, rather than taking the whole dashboard down.
+    personalDebtsUnavailable = !!iouRes.error;
+    if (iouRes.error) console.error(iouRes.error);
+    personalDebts = iouRes.data || [];
 
     // A missing settings table just means no savings target yet.
     settingsUnavailable = !!settingsRes.error;
@@ -388,6 +404,7 @@ async function loadMonth() {
     renderCategoryBreakdown();
     renderBudgets();
     renderOwed();
+    renderIouList();
     renderTrend();
     renderPayCycle();
     renderSummary();
@@ -1540,6 +1557,140 @@ function wireOwedForm(kind) {
 
 for (const kind of Object.keys(OWED_KINDS)) wireOwedForm(kind);
 
+// ---------- Money I owe ----------
+// The mirror of reimbursements above, and the one place in the app where an
+// "owed" row genuinely IS spending. Gotcha 11 says reimbursements must never
+// enter a spending total; this is the deliberate opposite, so keep the two
+// apart. The rule: an unpaid IOU costs you nothing yet — it only lands in
+// Remaining in the month you actually hand the money over, which is why
+// `repaid_on` decides the month rather than `date`.
+
+function iouOutstanding() {
+  return personalDebts.filter((d) => !d.repaid).reduce((sum, d) => sum + Number(d.amount), 0);
+}
+
+// What you paid back inside the month being viewed. This is the figure that
+// leaves Remaining.
+function repaidThisMonth() {
+  const start = toDateStr(currentMonth);
+  const end = toDateStr(monthEndExclusive(currentMonth));
+  return personalDebts
+    .filter((d) => d.repaid && d.repaid_on && d.repaid_on >= start && d.repaid_on < end)
+    .reduce((sum, d) => sum + Number(d.amount), 0);
+}
+
+function renderIouList() {
+  document.getElementById("iou-outstanding").textContent = fmt(iouOutstanding());
+
+  const ul = document.getElementById("iou-list");
+  ul.innerHTML = "";
+
+  if (personalDebtsUnavailable) {
+    ul.innerHTML = '<li class="empty-state">Run <code>migration_personal_debts.sql</code> in Supabase to switch this on.</li>';
+    return;
+  }
+
+  if (personalDebts.length === 0) {
+    ul.innerHTML = '<li class="empty-state">You don\'t owe anyone right now.</li>';
+    return;
+  }
+
+  // Still-owed first: the whole point is seeing what you still have to pay.
+  const sorted = [...personalDebts].sort((a, b) => {
+    if (a.repaid !== b.repaid) return a.repaid ? 1 : -1;
+    return a.date < b.date ? 1 : -1;
+  });
+
+  for (const d of sorted) {
+    const li = document.createElement("li");
+    if (d.repaid) li.classList.add("is-settled");
+    const dateLabel = new Date(d.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    const describe = `${d.person}, ${fmt(d.amount)} for ${d.description} on ${dateLabel}`;
+    const paidLabel = d.repaid_on
+      ? " · paid back " + new Date(d.repaid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+      : (d.repaid ? " · paid back" : "");
+
+    li.innerHTML = `
+      <div class="item-main">
+        <span class="item-title">${escapeHtml(d.person)}</span>
+        <span class="item-sub">${escapeHtml(d.description)} · ${dateLabel}${paidLabel}</span>
+      </div>
+      <span class="item-amount">${fmt(d.amount)}</span>
+      <span class="item-actions">
+        <button class="settle-btn" aria-label="${escapeAttr((d.repaid ? "Reopen, not actually paid back: " : "Mark as paid back: ") + describe)}"
+                title="${d.repaid ? "Reopen — not paid back after all" : "Mark as paid back"}">${d.repaid ? "↺" : "✓"}</button>
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+      </span>
+    `;
+
+    li.querySelector(".settle-btn").addEventListener("click", () => toggleIouRepaid(d));
+    li.querySelector(".delete-btn").addEventListener("click", () => deleteIou(d.id));
+    attachEdit(li, d, [
+      { key: "date", type: "date", required: true },
+      { key: "person", type: "text", required: true },
+      { key: "description", type: "text", required: true },
+      { key: "amount", type: "number", required: true },
+    ], "personal_debts", renderAfterIouChange);
+    ul.appendChild(li);
+  }
+}
+
+// Editing an amount moves what Remaining subtracts, so the summary has to be
+// redrawn too — not just the list.
+function renderAfterIouChange() {
+  renderIouList();
+  renderSummary();
+}
+
+async function toggleIouRepaid(item) {
+  const next = !item.repaid;
+  // `repaid_on` is the date the money actually moved, so it decides which
+  // month wears the cost. Today, because you tick it when you pay.
+  const patch = { repaid: next, repaid_on: next ? toDateStr(new Date()) : null };
+  const { error } = await sb.from("personal_debts").update(patch).eq("id", item.id);
+  if (error) { console.error(error); toast("Failed to update"); return; }
+  item.repaid = patch.repaid;
+  item.repaid_on = patch.repaid_on;
+  renderAfterIouChange();
+  toast(next ? `Paid back — counts as spending this month` : "Reopened — still owed");
+}
+
+async function deleteIou(id) {
+  const { error } = await sb.from("personal_debts").delete().eq("id", id);
+  if (error) { console.error(error); toast("Failed to delete"); return; }
+  personalDebts = personalDebts.filter((d) => d.id !== id);
+  renderAfterIouChange();
+}
+
+onSubmitLocked("iou-form", async () => {
+  const dateEl = document.getElementById("iou-date");
+  const amountEl = document.getElementById("iou-amount");
+  const personEl = document.getElementById("iou-person");
+  const descEl = document.getElementById("iou-desc");
+  const amount = parseFloat(amountEl.value);
+  const person = personEl.value.trim();
+  const description = descEl.value.trim();
+  if (!dateEl.value || isNaN(amount) || !person || !description) return;
+
+  const { data, error } = await sb.from("personal_debts")
+    .insert({ user_id: currentUser.id, date: dateEl.value, person, description, amount, repaid: false })
+    .select().single();
+  if (error) {
+    console.error(error);
+    toast(personalDebtsUnavailable ? "Run the personal debts migration first" : "Failed to add");
+    return;
+  }
+
+  personalDebts.unshift(data);
+  amountEl.value = "";
+  personEl.value = "";
+  descEl.value = "";
+  dateEl.value = toDateStr(new Date());
+  renderAfterIouChange();
+  toast("Saved — counts as spending when you pay it back");
+});
+
 // ---------- Receipts ----------
 // Photos live in a private Storage bucket, one folder per user, and are only
 // ever reached through a short-lived signed URL. The row holds the object
@@ -1822,11 +1973,17 @@ function buildTrend() {
       .reduce((s, f) => s + Number(f.amount), 0);
     const monthRow = allMonthlyRows.find((r) => r.month === mKey);
     const family = monthRow ? Number(monthRow.family_maintenance) : 0;
+    // Paying someone back is real money leaving in that month, and Remaining
+    // already treats it that way. Leaving it out here would make a month where
+    // you cleared a big IOU look cheaper than it was.
+    const repaid = personalDebts
+      .filter((d) => d.repaid && d.repaid_on && d.repaid_on >= start && d.repaid_on < end)
+      .reduce((s, d) => s + Number(d.amount), 0);
 
     months.push({
       label: m.toLocaleDateString("en-AU", { month: "short" }),
       income,
-      spending: daily + fixed + family,
+      spending: daily + fixed + family + repaid,
     });
   }
   return months;
@@ -2067,13 +2224,20 @@ function renderSummary() {
   const fixedTotal = fixedReserved();
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
   const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
-  const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
+  // Money handed back to someone this month. An IOU still outstanding costs
+  // nothing yet, so only what's actually been repaid lands here.
+  const repaid = repaidThisMonth();
+  const remaining = salary - family - fixedTotal - dailyTotal - netSavings - repaid;
 
   document.getElementById("sum-salary").textContent = fmt(salary);
   document.getElementById("sum-fixed").textContent = fmt(fixedTotal);
   document.getElementById("sum-family").textContent = fmt(family);
   document.getElementById("sum-daily").textContent = fmt(dailyTotal);
   document.getElementById("sum-savings").textContent = fmt(netSavings);
+  // Hidden at zero: a tile reading $0 every month for something most months
+  // don't involve is just noise in the grid.
+  document.getElementById("sum-repaid").textContent = fmt(repaid);
+  document.getElementById("sum-repaid-card").hidden = repaid <= 0;
 
   const remainingEl = document.getElementById("sum-remaining");
   remainingEl.textContent = fmt(remaining);
@@ -2458,11 +2622,15 @@ document.getElementById("export-btn").addEventListener("click", async () => {
       sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).order("month"),
       sb.from("daily_expenses").select("*").eq("user_id", currentUser.id).order("date"),
       sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date"),
+      sb.from("personal_debts").select("*").eq("user_id", currentUser.id).order("date"),
     ]);
-    const failed = results.find((r) => r.error);
+    // The money-you-owe table may not be migrated yet, and an export that
+    // fails wholesale over a table you aren't using would be worse than one
+    // that leaves it out.
+    const failed = results.slice(0, 5).find((r) => r.error);
     if (failed) throw failed.error;
 
-    const [salary, monthly, fixed, daily, savings] = results;
+    const [salary, monthly, fixed, daily, savings, owing] = results;
     const rows = [["Type", "Date", "Detail", "Amount", "Note"]];
     for (const r of salary.data) rows.push(["Salary", r.date, "", r.amount, r.note]);
     for (const r of monthly.data) rows.push(["Family maintenance", r.month, "", r.family_maintenance, ""]);
@@ -2470,6 +2638,12 @@ document.getElementById("export-btn").addEventListener("click", async () => {
     for (const r of daily.data) rows.push(["Daily expense", r.date, r.category, r.amount, r.note]);
     for (const r of savings.data) {
       rows.push(["Savings", r.date, r.type === "deposit" ? "Put in" : "Taken out", r.amount, r.note]);
+    }
+    for (const r of (owing.data || [])) {
+      // The repaid date, not the borrowed date, is the one that carries a cost,
+      // so it belongs in the export rather than a bare "paid back".
+      const status = r.repaid ? "Paid back" + (r.repaid_on ? " " + r.repaid_on : "") : "Still owed";
+      rows.push(["Money I owe", r.date, r.person, r.amount, r.description + " — " + status]);
     }
 
     const csv = rows.map((cells) => cells.map(csvCell).join(",")).join("\r\n");

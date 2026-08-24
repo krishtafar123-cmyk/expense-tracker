@@ -95,6 +95,24 @@ create table if not exists reimbursements (
   created_at timestamptz not null default now()
 );
 
+-- Money YOU owe other people — the mirror image of `reimbursements` above.
+-- Deliberately a separate table so the two directions can never be summed
+-- together by accident. Unlike a reimbursement, repaying one of these IS
+-- spending, and counts in the month `repaid_on` falls in.
+create table if not exists personal_debts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  -- Free text, so the next person you owe needs no code change.
+  person text not null,
+  description text not null,
+  amount numeric not null default 0,
+  repaid boolean not null default false,
+  repaid_on date,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_personal_debts_user on personal_debts(user_id, repaid, date);
 create index if not exists idx_reimbursements_user on reimbursements(user_id, owed_by, settled, date);
 create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
 create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
@@ -108,6 +126,7 @@ alter table salary_payments enable row level security;
 alter table savings_transactions enable row level security;
 alter table category_budgets enable row level security;
 alter table reimbursements enable row level security;
+alter table personal_debts enable row level security;
 alter table user_settings enable row level security;
 
 drop policy if exists "own monthly_data" on monthly_data;
@@ -140,6 +159,10 @@ create policy "own user_settings" on user_settings
 
 drop policy if exists "own reimbursements" on reimbursements;
 create policy "own reimbursements" on reimbursements
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own personal_debts" on personal_debts;
+create policy "own personal_debts" on personal_debts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------- Receipt photo storage ----------

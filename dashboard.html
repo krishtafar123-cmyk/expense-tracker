@@ -68,6 +68,10 @@
           <div class="summary-label">Saved this month</div>
           <div class="summary-value" id="sum-savings">$0</div>
         </div>
+        <div class="summary-card" id="sum-repaid-card" hidden>
+          <div class="summary-label">Paid back this month</div>
+          <div class="summary-value" id="sum-repaid">$0</div>
+        </div>
         <div class="summary-card summary-card-highlight" id="sum-remaining-card">
           <div class="summary-label">Remaining</div>
           <div class="summary-value" id="sum-remaining">$0</div>
@@ -281,6 +285,26 @@
             <input type="date" id="roommate-date" aria-label="Date you gave the money" required />
             <input type="number" inputmode="decimal" id="roommate-amount" aria-label="Amount you gave" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="roommate-desc" aria-label="What it was for" placeholder="What was it for?" required />
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2><span aria-hidden="true">🫱</span> Money I Owe</h2>
+          <p class="card-hint">People who covered something for you. <strong>Counts as spending in the month you pay it back</strong> — not before — so tick ✓ on the day you actually hand the money over.</p>
+
+          <div class="owed-banner">
+            <div class="summary-label">Still to pay back</div>
+            <div class="savings-balance-value" id="iou-outstanding">$0</div>
+          </div>
+
+          <ul id="iou-list" class="item-list"></ul>
+
+          <form id="iou-form" class="daily-form owed-form">
+            <input type="date" id="iou-date" aria-label="Date you borrowed it" required />
+            <input type="number" inputmode="decimal" id="iou-amount" aria-label="Amount you owe" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="iou-person" aria-label="Who you owe" placeholder="Who? (e.g. Sam)" required />
+            <input type="text" id="iou-desc" aria-label="What it was for" placeholder="What was it for?" required />
             <button type="submit" class="btn btn-primary">Add</button>
           </form>
         </section>

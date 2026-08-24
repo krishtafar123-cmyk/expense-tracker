@@ -720,6 +720,9 @@ input, select { font-family: inherit; }
 }
 
 .owed-form input[id$="-desc"] { grid-column: 1 / -1; }
+/* Full width too, or it sits alone in column one with a gap beside it — and
+   two text fields side by side are cramped on a phone anyway. */
+#iou-person { grid-column: 1 / -1; }
 
 /* Repaid / paid items stay visible as a record, but recede so the outstanding
    ones read first. */
