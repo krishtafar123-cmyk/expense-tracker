@@ -1116,9 +1116,21 @@ function quickAddSuggestions() {
 
 function renderQuickAdd() {
   const box = document.getElementById("quick-add");
-  const suggestions = quickAddSuggestions();
+  const today = new Date();
+  const viewingCurrentMonth =
+    today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
   box.textContent = "";
 
+  // A chip always logs to today, so outside the month containing today the tap
+  // would file the expense somewhere the user can't see and read as a no-op.
+  // A past month hides them anyway once it falls out of the 60-day window, but
+  // a future month is still inside it — so the check has to be explicit.
+  if (!viewingCurrentMonth) {
+    box.hidden = true;
+    return;
+  }
+
+  const suggestions = quickAddSuggestions();
   if (suggestions.length === 0) {
     box.hidden = true;
     return;
@@ -1158,6 +1170,9 @@ async function quickAdd(s, btn) {
       renderSummary();
     }
 
+    // Deliberately no renderQuickAdd() here, unlike the form path: this tap
+    // just bumped the chip's own count, and re-sorting the row would move the
+    // buttons under the user's finger mid-tap. They settle on the next load.
     toast(`Added ${s.note || s.category} ${fmt(s.amount)}`, {
       label: "Undo",
       onClick: () => deleteDailyExpense(data.id),
