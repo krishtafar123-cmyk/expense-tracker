@@ -73,6 +73,7 @@ Roughly in order of value for how this app is actually used:
 - Year-to-date and per-year views; the trend chart is fixed at 6 months.
 - Filter/search the expense list (by category, date range, note text).
 - Export the currently-viewed month only, alongside the existing export-everything.
+- The export mixes income, spending and money owed in one Amount column, discriminated only by the Type column. Fine for a backup, easy to misread if summed naively.
 
 **Data model**
 - Multi-currency (currency is AUD, hardcoded in the `Intl.NumberFormat` in `dashboard.js`).

@@ -2622,15 +2622,17 @@ document.getElementById("export-btn").addEventListener("click", async () => {
       sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).order("month"),
       sb.from("daily_expenses").select("*").eq("user_id", currentUser.id).order("date"),
       sb.from("savings_transactions").select("*").eq("user_id", currentUser.id).order("date"),
+      // Everything after this point is optional: these tables may not be
+      // migrated yet, and an export that fails wholesale over a feature you
+      // aren't using would be worse than one that leaves it out.
       sb.from("personal_debts").select("*").eq("user_id", currentUser.id).order("date"),
+      sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date"),
     ]);
-    // The money-you-owe table may not be migrated yet, and an export that
-    // fails wholesale over a table you aren't using would be worse than one
-    // that leaves it out.
-    const failed = results.slice(0, 5).find((r) => r.error);
+    const CORE_TABLES = 5;
+    const failed = results.slice(0, CORE_TABLES).find((r) => r.error);
     if (failed) throw failed.error;
 
-    const [salary, monthly, fixed, daily, savings, owing] = results;
+    const [salary, monthly, fixed, daily, savings, owing, owedToMe] = results;
     const rows = [["Type", "Date", "Detail", "Amount", "Note"]];
     for (const r of salary.data) rows.push(["Salary", r.date, "", r.amount, r.note]);
     for (const r of monthly.data) rows.push(["Family maintenance", r.month, "", r.family_maintenance, ""]);
@@ -2644,6 +2646,13 @@ document.getElementById("export-btn").addEventListener("click", async () => {
       // so it belongs in the export rather than a bare "paid back".
       const status = r.repaid ? "Paid back" + (r.repaid_on ? " " + r.repaid_on : "") : "Still owed";
       rows.push(["Money I owe", r.date, r.person, r.amount, r.description + " — " + status]);
+    }
+    for (const r of (owedToMe.data || [])) {
+      // Named so a row can't be mistaken for spending when this is read back
+      // in a spreadsheet — these are the one thing here that's owed TO you.
+      const type = r.owed_by === "work" ? "Owed to me (work purchase)" : "Owed to me (lent to roommate)";
+      const status = r.settled ? "Cleared" + (r.settled_on ? " " + r.settled_on : "") : "Not cleared yet";
+      rows.push([type, r.date, r.description, r.amount, status]);
     }
 
     const csv = rows.map((cells) => cells.map(csvCell).join(",")).join("\r\n");
