@@ -1,56 +1,72 @@
-/* Slate & navy. Flat surfaces, thin borders, minimal shadow — no blur or
-   gradients. Colour is reserved for meaning: navy for actions, green and red
-   only where they say something about the money. */
+/* Ink & indigo. Near-black text on cool grey, indigo for actions, green and
+   red only where they say something about the money.
+
+   Two rules keep this from drifting back to looking dated:
+   1. A surface gets a hairline border OR a shadow, never both — doubling up
+      is what made the old theme read as a 2016 dashboard.
+   2. Micro-labels stay sentence case. Uppercase + letter-spacing on every
+      tile is the other big tell. */
 :root {
-  --bg: #f4f6f8;
+  --bg: #f6f7f9;
   --card-bg: #ffffff;
   /* Kept as a separate token so anything needing a guaranteed-opaque surface
      doesn't depend on --card-bg happening to be solid. */
   --card-solid: #ffffff;
-  --text: #1a2027;
-  --text-muted: #5b6672;
-  --border: #e3e8ee;
-  --border-strong: #cfd7e0;
-  --primary: #1f3a5f;
-  --primary-hover: #16294a;
-  --accent: #2f5a8f;
+  --text: #0d1117;
+  --text-muted: #656d76;
+  --border: #eceef2;
+  --border-strong: #d8dce4;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --accent: #6366f1;
+  /* A tinted wash of the primary, for pills and quiet highlights. Replaces
+     the old habit of bordering everything to make it stand out. */
+  --primary-soft: #eef0fe;
+  --primary-soft-text: #4338ca;
   /* Text/icons sitting on top of --primary. */
   --on-primary: #ffffff;
   --on-primary-muted: rgba(255,255,255,0.82);
-  --green: #1e7a4a;
-  --red: #b3261e;
+  /* Both hold AA against white as body text. */
+  --green: #0b6b45;
+  --red: #b42318;
   /* The two series must differ in lightness, not just hue — green vs red at
      the same luminance is nearly indistinguishable to a colourblind reader,
      and the bars sit side by side with nothing else to tell them apart. */
-  --chart-income: #1f3a5f;
-  --chart-spending: #b8823f;
+  --chart-income: #4f46e5;
+  --chart-spending: #d97706;
   --input-bg: #ffffff;
-  --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.08);
-  --radius: 10px;
+  /* A whisper, not a lift. Cards carry a border instead. */
+  --shadow: 0 1px 2px rgba(13,17,23,0.04);
+  --radius: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #10151b;
-    --card-bg: #171d25;
-    --card-solid: #171d25;
-    --text: #e6eaef;
-    --text-muted: #9aa4b0;
-    --border: #262f3a;
-    --border-strong: #333e4b;
-    /* Navy is unreadable on a dark background, so it lightens rather than
-       staying the same hex as light mode. */
-    --primary: #7aa7d9;
-    --primary-hover: #93b9e4;
-    --accent: #5b8ac2;
-    --on-primary: #0e1620;
-    --on-primary-muted: rgba(14,22,32,0.75);
-    --green: #4fae7c;
-    --red: #e0736a;
-    --chart-income: #5b8ac2;
-    --chart-spending: #e0b184;
-    --input-bg: #1d242d;
-    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.45);
+    --bg: #0d1117;
+    --card-bg: #161b22;
+    --card-solid: #161b22;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --border: #232a33;
+    --border-strong: #303a45;
+    /* Indigo at full saturation is unreadable on a dark background, so it
+       lightens rather than staying the same hex as light mode. */
+    --primary: #a5b4fc;
+    --primary-hover: #c7d2fe;
+    --accent: #818cf8;
+    --primary-soft: #1e2337;
+    --primary-soft-text: #a5b4fc;
+    --on-primary: #1e1b4b;
+    --on-primary-muted: rgba(30,27,75,0.75);
+    --green: #3fb950;
+    --red: #f85149;
+    --chart-income: #818cf8;
+    /* Noticeably lighter than the income bar, not just a different hue — at
+       #e3a008 the two were only 0.11 apart in luminance, which is close to
+       indistinguishable without colour vision. */
+    --chart-spending: #fbbf24;
+    --input-bg: #0d1117;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 }
 
@@ -79,10 +95,24 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Inter is loaded from Google Fonts in each page's <head>. The system stack
+     behind it is the real fallback, so an offline load or a blocked request
+     degrades to exactly how the app looked before rather than to Times. */
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
   background: var(--bg);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Money should line up in a column and not jitter as digits change, which
+   proportional figures do. Applies wherever an amount is rendered. */
+.item-amount,
+.savings-balance-value,
+.topbar-remaining-value,
+.cat-amount,
+.budget-amount {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Surfaces ---------- */
@@ -132,8 +162,7 @@ input, select { font-family: inherit; }
 
 .auth-card {
   background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border-radius: 16px;
   padding: 32px;
   width: 100%;
   max-width: 380px;
@@ -283,7 +312,7 @@ input, select { font-family: inherit; }
 /* ---------- Buttons ---------- */
 .btn {
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 600;
@@ -311,7 +340,7 @@ input, select { font-family: inherit; }
 .icon-btn {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   width: 32px;
   height: 32px;
   font-size: 18px;
@@ -443,9 +472,8 @@ input, select { font-family: inherit; }
 
 .summary-card {
   background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px;
+  border-radius: 16px;
+  padding: 18px;
 }
 
 .summary-card-highlight {
@@ -454,15 +482,32 @@ input, select { font-family: inherit; }
 }
 .summary-card-highlight .summary-label { color: var(--on-primary-muted); }
 
+/* Going under is the one moment this number has to be unmissable, so the
+   whole tile flips instead of just the text. Red text on the indigo tile is
+   about 1:1 contrast — the figure effectively disappeared exactly when it
+   mattered most. */
+.summary-card-highlight.is-negative { background: var(--red); }
+.summary-card-highlight.is-negative .summary-value { color: var(--on-primary) !important; }
+
+/* Sentence case, no letter-spacing: the uppercase micro-label on every tile
+   was one of the two things making the old theme look dated. */
 .summary-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
-.summary-value { font-size: 22px; font-weight: 700; }
+/* The number is the point of the tile, so it's allowed to dominate. Negative
+   tracking stops large figures reading as loose at this size. */
+.summary-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Remaining is the headline of the whole app — bigger again. */
+.summary-card-highlight .summary-value { font-size: 32px; }
 
 .negative { color: var(--red) !important; }
 .positive { color: var(--green) !important; }
@@ -584,7 +629,7 @@ input, select { font-family: inherit; }
   width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   color: var(--text);
   font-size: 13px;
@@ -617,25 +662,30 @@ input, select { font-family: inherit; }
   .topbar { justify-content: center; text-align: center; }
 }
 
+/* Border only — no shadow. The border is already doing the separating, and
+   stacking both is what made every surface look heavy. */
 .card {
   background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
 }
 
-.card h2 { margin: 0 0 16px; font-size: 17px; }
+.card h2 {
+  margin: 0 0 18px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .subheading {
   font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 600;
   color: var(--text-muted);
-  margin: 20px 0 10px;
+  margin: 22px 0 10px;
 }
 
 .savings-balance {
   background: var(--input-bg);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 16px;
 }
@@ -643,6 +693,8 @@ input, select { font-family: inherit; }
 .savings-balance-value {
   font-size: 24px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   margin-top: 4px;
 }
 
@@ -676,9 +728,7 @@ input, select { font-family: inherit; }
 }
 
 .spend-hero-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 13px;
   color: var(--on-primary-muted);
 }
 
@@ -688,6 +738,8 @@ input, select { font-family: inherit; }
 .spend-hero-value {
   font-size: 34px;
   font-weight: 700;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
   margin: 6px 0 4px;
 }
@@ -709,6 +761,8 @@ input, select { font-family: inherit; }
 .cycle-value {
   font-size: 20px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   margin-top: 4px;
 }
 
@@ -770,7 +824,7 @@ input, select { font-family: inherit; }
   font-size: 15px;
   min-width: 34px;
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 .settle-btn:hover { color: var(--green); }
 
@@ -787,7 +841,7 @@ input, select { font-family: inherit; }
   margin-top: 6px;
   padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
@@ -830,7 +884,7 @@ input, select { font-family: inherit; }
 .item-sub { font-size: 12px; color: var(--text-muted); }
 
 .item-amount {
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   text-align: right;
 }
@@ -855,7 +909,7 @@ input, select { font-family: inherit; }
   /* Large enough to be a comfortable tap target on a phone. */
   min-width: 34px;
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 .delete-btn:hover { color: var(--red); }
 .edit-btn:hover { color: var(--primary); }
@@ -876,7 +930,7 @@ input, select { font-family: inherit; }
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
@@ -906,7 +960,7 @@ input, select { font-family: inherit; }
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
@@ -921,7 +975,7 @@ input, select { font-family: inherit; }
 .daily-form input, .daily-form select {
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
@@ -941,7 +995,7 @@ input, select { font-family: inherit; }
   gap: 8px;
   padding: 9px 12px;
   border: 1px dashed var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--input-bg);
   font-size: 14px;
 }
@@ -1035,7 +1089,7 @@ input, select { font-family: inherit; }
   background: var(--text);
   color: var(--bg);
   padding: 10px 18px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13px;
   box-shadow: var(--shadow);
   z-index: 100;
@@ -1047,7 +1101,7 @@ input, select { font-family: inherit; }
   margin-left: 12px;
   padding: 4px 10px;
   border: 1px solid currentColor;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   font-size: 13px;
@@ -1066,7 +1120,7 @@ input, select { font-family: inherit; }
   flex: 1;
   padding: 9px 10px;
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text-muted);
   font-size: 14px;
@@ -1092,7 +1146,7 @@ input, select { font-family: inherit; }
 .receipt-clear {
   background: transparent;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--text-muted);
   font-size: 14px;
   min-width: 38px;
@@ -1107,7 +1161,7 @@ input, select { font-family: inherit; }
   font-size: 15px;
   min-width: 34px;
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 .receipt-view-btn:hover { color: var(--primary); }
 
@@ -1130,7 +1184,7 @@ input, select { font-family: inherit; }
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .receipt-close {
@@ -1161,7 +1215,6 @@ input, select { font-family: inherit; }
   border-radius: var(--radius);
   background: var(--card-bg);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow);
 }
 
 .tab {
@@ -1172,7 +1225,7 @@ input, select { font-family: inherit; }
   gap: 7px;
   padding: 10px 8px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text-muted);
   font-size: 14px;
@@ -1209,7 +1262,7 @@ input, select { font-family: inherit; }
     gap: 3px;
     font-size: 11px;
     padding: 7px 2px;
-    border-radius: 8px;
+    border-radius: 10px;
   }
   .tab-icon { font-size: 19px; }
 
@@ -1225,24 +1278,31 @@ input, select { font-family: inherit; }
 /* ---------- Remaining in the topbar ---------- */
 /* Scoped to :not([hidden]) so the hidden attribute still wins over display. */
 .topbar-remaining:not([hidden]) { display: flex; }
+/* A tint rather than a border — the pill reads as part of the bar instead of
+   a box bolted onto it. */
 .topbar-remaining {
   align-items: baseline;
   gap: 8px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: var(--input-bg);
-  border: 1px solid var(--border-strong);
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
 }
 
+/* Sentence case, and it takes its colour from the pill rather than the page,
+   so it stays legible against the tint. */
+/* 0.75 dropped this to 4.08:1 against the tint — under AA for 12px text. */
 .topbar-remaining-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.88;
 }
 
-.topbar-remaining-value { font-size: 16px; font-weight: 700; }
+.topbar-remaining-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: inherit;
+}
 
 @media (max-width: 800px) {
   /* The topbar is sticky, so every row it gains is permanently lost from the

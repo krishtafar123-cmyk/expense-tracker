@@ -86,7 +86,20 @@ Roughly in order of value for how this app is actually used:
 - `savings_transactions` loads all-time on every month change to compute the running balance — fine at personal scale, but a running total column or a view would scale better.
 - Biometric unlock (WebAuthn) instead of typing the PIN on a phone that supports it.
 
+## The visual language
+
+Changed 2026-08-24, from slate & navy to "ink & indigo", after the user said it looked dated. Four rules hold it together — breaking any of them is what made the old theme read as a 2016 dashboard:
+
+1. **A surface gets a hairline border OR a shadow, never both.** Cards, summary tiles and the tab bar use a border and no shadow. Only genuinely floating things — the toast, the update banner — keep a shadow, and they have no border.
+2. **Micro-labels are sentence case.** No `text-transform: uppercase` with letter-spacing anywhere; it was on every tile and is the single most dating detail after the navy.
+3. **Numbers dominate.** `--radius` is 14px (cards 16px), amounts carry `font-variant-numeric: tabular-nums` so money forms a column and doesn't jitter as digits change, and large figures get negative letter-spacing.
+4. **Every colour pair holds WCAG AA in both modes**, and the two chart series differ in *lightness*, not just hue — check any new colour before adding it. The dark spending bar had to move from `#e3a008` to `#fbbf24` for exactly this reason.
+
+Typography is Inter from Google Fonts, with the old system stack as the fallback, so a blocked or offline request degrades to how the app looked before rather than to a serif. This is the **one** exception to the no-third-party-requests rule below, made deliberately.
+
+**Gotcha that bit here:** `.negative` sets red text, but on `.summary-card-highlight` (the Remaining tile) that was red on the highlight colour — 1.05:1, invisible, at exactly the moment the number matters most. The tile now flips whole via `.is-negative`. Any future "highlight" surface needs the same treatment; don't just set a text colour on it.
+
 ## Deliberate non-goals
 
-- **No analytics or third-party scripts.** The only external request is the supabase-js CDN.
+- **No analytics.** No third-party scripts. External requests are limited to the supabase-js CDN and the Inter webfont — nothing else.
 - **No server of our own.** It's static files plus Supabase; keeping it that way is what makes hosting free and deploys instant.

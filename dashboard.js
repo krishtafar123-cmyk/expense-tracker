@@ -2305,6 +2305,9 @@ function renderSummary() {
   const remainingEl = document.getElementById("sum-remaining");
   remainingEl.textContent = fmt(remaining);
   remainingEl.classList.toggle("negative", remaining < 0);
+  // The whole tile flips when you're under, not just the text — red on the
+  // highlight colour is unreadable. See .is-negative in styles.css.
+  document.getElementById("sum-remaining-card").classList.toggle("is-negative", remaining < 0);
 
   // Same figure in the sticky topbar, so it stays on screen while you're
   // logging an expense on another tab.
