@@ -153,8 +153,7 @@ function startApp() {
   resetDailyDateToToday();
   document.getElementById("salary-date").value = toDateStr(new Date());
   document.getElementById("savings-date").value = toDateStr(new Date());
-  document.getElementById("work-date").value = toDateStr(new Date());
-  document.getElementById("roommate-date").value = toDateStr(new Date());
+  document.getElementById("owed-date").value = toDateStr(new Date());
   document.getElementById("iou-date").value = toDateStr(new Date());
   restoreTab();
   loadMonth();
@@ -417,6 +416,10 @@ async function loadMonth() {
     if (settingsRes.error) console.error(settingsRes.error);
     savePerCycle = settingsRes.data ? Number(settingsRes.data.save_per_cycle) : 0;
     document.getElementById("save-per-cycle").value = savePerCycle > 0 ? savePerCycle : "";
+    // "Family maintenance" is one household's wording. The field is useful to
+    // anyone, so only the label is theirs to set.
+    familyLabel = (settingsRes.data && settingsRes.data.family_label) || DEFAULT_FAMILY_LABEL;
+    applyFamilyLabel();
 
     // A missing debt_total column just means no debts are being tracked.
     debtsUnavailable = !!debtRes.error;
@@ -483,6 +486,42 @@ async function loadMonth() {
     setLoading(false);
   }
 }
+
+// ---------- The renameable monthly commitment ----------
+// The column is still `family_maintenance` — renaming it would mean migrating
+// every row for a cosmetic win — but nothing on screen says so unless the
+// user chose that wording themselves.
+const DEFAULT_FAMILY_LABEL = "Monthly commitment";
+let familyLabel = DEFAULT_FAMILY_LABEL;
+
+function applyFamilyLabel() {
+  const name = familyLabel || DEFAULT_FAMILY_LABEL;
+  document.getElementById("family-field-label").textContent = name;
+  document.getElementById("family-summary-label").textContent = name;
+  const btn = document.getElementById("family-paid-btn");
+  if (btn) btn.setAttribute("aria-label", "Mark " + name.toLowerCase() + " as paid");
+}
+
+document.getElementById("rename-family-btn").addEventListener("click", async () => {
+  const next = prompt("What should this be called?", familyLabel);
+  if (next === null) return;
+  const name = next.trim().slice(0, 40);
+  if (!name) return;
+
+  familyLabel = name;
+  applyFamilyLabel();
+  renderFamilyPaid();
+
+  const { error } = await sb.from("user_settings")
+    .upsert({ user_id: currentUser.id, family_label: name, updated_at: new Date().toISOString() },
+            { onConflict: "user_id" });
+  if (error) {
+    console.error(error);
+    toast(settingsUnavailable ? "Run the user settings migration first" : "Renamed here, but couldn't save it");
+    return;
+  }
+  toast("Renamed");
+});
 
 // ---------- Monthly setup: family maintenance ----------
 async function ensureMonthlyRow() {
@@ -779,7 +818,8 @@ function renderFamilyPaid() {
 
   row.classList.toggle("is-paid", paid);
   btn.textContent = paid ? "↺" : "✓";
-  btn.setAttribute("aria-label", paid ? "Mark family maintenance as not paid" : "Mark family maintenance as paid");
+  const fLabel = (familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase();
+  btn.setAttribute("aria-label", "Mark " + fLabel + (paid ? " as not paid" : " as paid"));
   label.textContent = paid
     ? "Paid" + (monthlyRow.family_paid_on
         ? " " + new Date(monthlyRow.family_paid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
@@ -1429,7 +1469,7 @@ function renderPayCycle() {
   }
 
   document.getElementById("cycle-note").textContent =
-    `Includes ${fmt(share)} as this fortnight's share of your ${fmt(monthlyCommitments)} monthly fixed costs and family maintenance.`;
+    `Includes ${fmt(share)} as this fortnight's share of your ${fmt(monthlyCommitments)} monthly fixed costs and ${(familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase()}.`;
 
   card.hidden = false;
 }
@@ -1457,33 +1497,40 @@ document.getElementById("save-per-cycle").addEventListener("input", (e) => {
 });
 
 // ---------- Money owed back to you ----------
-// Work purchases and money lent to a roommate. These are reminders, never
-// spending: nothing here feeds Remaining, the trend chart, category budgets or
-// any insight about what you've spent.
-const OWED_KINDS = {
-  work: { list: "work-list", total: "work-outstanding", form: "work-form", noun: "purchase" },
-  roommate: { list: "roommate-list", total: "roommate-outstanding", form: "roommate-form", noun: "loan" },
-};
+// Reminders, never spending: nothing here feeds Remaining, the trend chart,
+// category budgets or any insight about what you've spent.
+//
+// Who owes you is free text rather than a fixed set. It used to be exactly
+// two categories, "work" and "roommate", which is one person's living
+// situation rather than a general idea — an employer, a friend and a landlord
+// are all the same shape of thing, and nobody else has the same list.
 
-function owedItems(kind) {
-  return reimbursements.filter((r) => r.owed_by === kind);
-}
-
-function owedOutstanding(kind) {
-  return owedItems(kind)
+function owedOutstanding() {
+  return reimbursements
     .filter((r) => !r.settled)
     .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 
-function renderOwed() {
-  for (const kind of Object.keys(OWED_KINDS)) renderOwedList(kind);
+// Grouped by name so several claims against the same person read as one
+// running total rather than a flat list you have to add up yourself.
+function owedByPerson() {
+  const totals = {};
+  for (const r of reimbursements) {
+    if (r.settled) continue;
+    const name = (r.person || "Someone").trim() || "Someone";
+    totals[name] = (totals[name] || 0) + Number(r.amount);
+  }
+  return Object.entries(totals).sort((a, b) => b[1] - a[1]);
 }
 
-function renderOwedList(kind) {
-  const cfg = OWED_KINDS[kind];
-  document.getElementById(cfg.total).textContent = fmt(owedOutstanding(kind));
+function renderOwed() {
+  renderOwedList();
+}
 
-  const ul = document.getElementById(cfg.list);
+function renderOwedList() {
+  document.getElementById("owed-outstanding").textContent = fmt(owedOutstanding());
+
+  const ul = document.getElementById("owed-list");
   ul.innerHTML = "";
 
   if (reimbursementsUnavailable) {
@@ -1491,7 +1538,7 @@ function renderOwedList(kind) {
     return;
   }
 
-  const items = owedItems(kind);
+  const items = reimbursements;
   if (items.length === 0) {
     ul.innerHTML = '<li class="empty-state">Nothing recorded yet.</li>';
     return;
@@ -1507,15 +1554,18 @@ function renderOwedList(kind) {
     const li = document.createElement("li");
     if (r.settled) li.classList.add("is-settled");
     const dateLabel = new Date(r.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-    const describe = r.description + ", " + fmt(r.amount) + " on " + dateLabel;
+    const person = (r.person || "Someone").trim() || "Someone";
+    const describe = `${person}, ${fmt(r.amount)} for ${r.description} on ${dateLabel}`;
     const clearedLabel = r.settled_on
       ? " · cleared " + new Date(r.settled_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
       : (r.settled ? " · cleared" : "");
 
+    // Name leads, because "who still owes me" is the question this card
+    // answers; what it was for is the supporting detail.
     li.innerHTML = `
       <div class="item-main">
-        <span class="item-title">${escapeHtml(r.description)}</span>
-        <span class="item-sub">${dateLabel}${clearedLabel}</span>
+        <span class="item-title">${escapeHtml(person)}</span>
+        <span class="item-sub">${escapeHtml(r.description)} · ${dateLabel}${clearedLabel}</span>
       </div>
       <span class="item-amount">${fmt(r.amount)}</span>
       <span class="item-actions">
@@ -1532,12 +1582,20 @@ function renderOwedList(kind) {
     li.querySelector(".delete-btn").addEventListener("click", () => deleteOwed(r.id));
     attachEdit(li, r, [
       { key: "date", type: "date", required: true },
+      { key: "person", type: "text", required: true },
       { key: "description", type: "text", required: true },
       { key: "amount", type: "number", required: true },
-    ], "reimbursements", () => renderOwedList(kind));
+    ], "reimbursements", renderAfterOwedChange);
 
     ul.appendChild(li);
   }
+}
+
+// Editing a name or amount moves the outstanding total and the insight built
+// from it, so both are redrawn — not just the row.
+function renderAfterOwedChange() {
+  renderOwedList();
+  renderInsights();
 }
 
 async function toggleOwedSettled(item) {
@@ -1563,8 +1621,7 @@ async function toggleOwedSettled(item) {
 
   item.settled = patch.settled;
   item.settled_on = patch.settled_on;
-  renderOwedList(item.owed_by);
-  renderInsights();
+  renderAfterOwedChange();
   toast(next
     ? (droppingReceipt ? "Cleared — receipt deleted" : "Cleared")
     : "Reopened — still owed");
@@ -1576,49 +1633,41 @@ async function deleteOwed(id) {
   const { error } = await sb.from("reimbursements").delete().eq("id", id);
   if (error) { console.error(error); toast("Failed to delete"); return; }
   await deleteReceipt(receiptPath);
-  const removed = reimbursements.find((r) => r.id === id);
   reimbursements = reimbursements.filter((r) => r.id !== id);
-  if (removed) renderOwedList(removed.owed_by);
-  renderInsights();
+  renderAfterOwedChange();
 }
 
-function wireOwedForm(kind) {
-  const cfg = OWED_KINDS[kind];
-  onSubmitLocked(cfg.form, async () => {
-    const dateEl = document.getElementById(kind + "-date");
-    const amountEl = document.getElementById(kind + "-amount");
-    const descEl = document.getElementById(kind + "-desc");
-    const amount = parseFloat(amountEl.value);
-    const description = descEl.value.trim();
-    if (!dateEl.value || isNaN(amount) || !description) return;
+onSubmitLocked("owed-form", async () => {
+  const dateEl = document.getElementById("owed-date");
+  const amountEl = document.getElementById("owed-amount");
+  const personEl = document.getElementById("owed-person");
+  const descEl = document.getElementById("owed-desc");
+  const amount = parseFloat(amountEl.value);
+  const person = personEl.value.trim();
+  const description = descEl.value.trim();
+  if (!dateEl.value || isNaN(amount) || !person || !description) return;
 
-    const { data, error } = await sb.from("reimbursements")
-      .insert({ user_id: currentUser.id, date: dateEl.value, owed_by: kind, description, amount, settled: false })
-      .select().single();
-    if (error) {
-      console.error(error);
-      toast(reimbursementsUnavailable ? "Run the reimbursements migration first" : "Failed to add");
-      return;
-    }
+  const { data, error } = await sb.from("reimbursements")
+    .insert({ user_id: currentUser.id, date: dateEl.value, person, description, amount, settled: false })
+    .select().single();
+  if (error) {
+    console.error(error);
+    toast(reimbursementsUnavailable ? "Run the reimbursements migration first" : "Failed to add");
+    return;
+  }
 
-    // Only work purchases get a receipt picker — a roommate loan is a note to
-    // yourself, not something you have to prove to anyone.
-    const picker = kind === "work" ? workReceiptPicker : null;
-    const receiptFile = picker && picker.file();
-    const receiptOk = receiptFile ? await attachReceipt("reimbursements", data, receiptFile, picker) : true;
+  const receiptFile = owedReceiptPicker.file();
+  const receiptOk = receiptFile ? await attachReceipt("reimbursements", data, receiptFile, owedReceiptPicker) : true;
 
-    reimbursements.unshift(data);
-    amountEl.value = "";
-    descEl.value = "";
-    dateEl.value = toDateStr(new Date());
-    renderOwedList(kind);
-    renderInsights();
-    // attachReceipt has already said what went wrong; don't paper over it.
-    if (receiptOk) toast("Saved as a reminder — not counted as spending");
-  });
-}
-
-for (const kind of Object.keys(OWED_KINDS)) wireOwedForm(kind);
+  reimbursements.unshift(data);
+  amountEl.value = "";
+  personEl.value = "";
+  descEl.value = "";
+  dateEl.value = toDateStr(new Date());
+  renderAfterOwedChange();
+  // attachReceipt has already said what went wrong; don't paper over it.
+  if (receiptOk) toast("Saved as a reminder — not counted as spending");
+});
 
 // ---------- Money I owe ----------
 // The mirror of reimbursements above, and the one place in the app where an
@@ -1900,7 +1949,7 @@ function wireReceiptPicker(prefix) {
 }
 
 const dailyReceiptPicker = wireReceiptPicker("daily");
-const workReceiptPicker = wireReceiptPicker("work");
+const owedReceiptPicker = wireReceiptPicker("owed");
 
 // ---------- Daily expenses ----------
 onSubmitLocked("daily-form", async () => {
@@ -2472,29 +2521,32 @@ function generateInsights() {
       insights.push({
         tone: "info",
         icon: "🔒",
-        text: `Fixed expenses and family maintenance take up ${Math.round(committedShare)}% of your salary this month.`,
+        text: `Fixed expenses and ${(familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase()} take up ${Math.round(committedShare)}% of your salary this month.`,
       });
     }
   }
 
   // 6. Money still owed back to you. Ranked near the top because it's the one
   // thing here that needs an action from someone else, and it's easy to forget.
-  const owedWork = owedOutstanding("work");
-  const owedRoommate = owedOutstanding("roommate");
-  if (owedWork > 0) {
-    const count = owedItems("work").filter((r) => !r.settled).length;
+  // Named per person rather than per hardcoded category, and capped at the two
+  // biggest so a long list of small IOUs can't crowd out every other insight.
+  const owedPeople = owedByPerson();
+  for (const [name, total] of owedPeople.slice(0, 2).reverse()) {
+    const count = reimbursements.filter(
+      (r) => !r.settled && ((r.person || "Someone").trim() || "Someone") === name
+    ).length;
     insights.unshift({
       tone: "info",
       icon: "🧾",
-      text: `${fmt(owedWork)} of work purchases still to claim back (${count} item${count === 1 ? "" : "s"}).`,
+      text: `${escapeHtml(name)} still owes you ${fmt(total)} across ${count} item${count === 1 ? "" : "s"}.`,
     });
   }
-  if (owedRoommate > 0) {
-    const count = owedItems("roommate").filter((r) => !r.settled).length;
+  if (owedPeople.length > 2) {
+    const rest = owedPeople.slice(2).reduce((s, [, t]) => s + t, 0);
     insights.unshift({
       tone: "info",
-      icon: "🤝",
-      text: `Your roommate still owes you ${fmt(owedRoommate)} across ${count} item${count === 1 ? "" : "s"}.`,
+      icon: "🧾",
+      text: `And ${fmt(rest)} owed to you by ${owedPeople.length - 2} other${owedPeople.length - 2 === 1 ? "" : "s"}.`,
     });
   }
 
@@ -2529,7 +2581,7 @@ function generateInsights() {
       insights.unshift({
         tone: "warning",
         icon: "📌",
-        text: `${fmt(outstanding)} of fixed costs and family maintenance still isn't ticked off, with ${daysToMonthEnd} day${daysToMonthEnd === 1 ? "" : "s"} left in the month.`,
+        text: `${fmt(outstanding)} of fixed costs and ${(familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase()} still isn't ticked off, with ${daysToMonthEnd} day${daysToMonthEnd === 1 ? "" : "s"} left in the month.`,
       });
     }
   }
@@ -2723,9 +2775,8 @@ document.getElementById("export-btn").addEventListener("click", async () => {
     for (const r of (owedToMe.data || [])) {
       // Named so a row can't be mistaken for spending when this is read back
       // in a spreadsheet — these are the one thing here that's owed TO you.
-      const type = r.owed_by === "work" ? "Owed to me (work purchase)" : "Owed to me (lent to roommate)";
       const status = r.settled ? "Cleared" + (r.settled_on ? " " + r.settled_on : "") : "Not cleared yet";
-      rows.push([type, r.date, r.description, r.amount, status]);
+      rows.push(["Owed to me", r.date, r.person || "Someone", r.amount, r.description + " — " + status]);
     }
 
     const csv = rows.map((cells) => cells.map(csvCell).join(",")).join("\r\n");

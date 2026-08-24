@@ -87,7 +87,7 @@
           <div class="summary-value" id="sum-fixed">$0</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">Family Maintenance</div>
+          <div class="summary-label" id="family-summary-label">Monthly commitment</div>
           <div class="summary-value" id="sum-family">$0</div>
         </div>
         <div class="summary-card">
@@ -192,9 +192,10 @@
           </div>
 
           <label class="field">
-            Family Maintenance
+            <span id="family-field-label">Monthly commitment</span>
             <input type="number" inputmode="decimal" id="input-family" step="0.01" min="0" placeholder="0.00" />
           </label>
+          <p class="card-hint">A fixed amount you send somewhere every month that isn't a normal bill — money to family, an allowance, a standing gift. <button type="button" class="link-btn" id="rename-family-btn">Rename this</button></p>
 
           <div class="paid-row" id="family-paid-row">
             <button type="button" class="settle-btn" id="family-paid-btn" aria-label="Mark family maintenance as paid">✓</button>
@@ -287,47 +288,29 @@
       <div class="tab-panel" id="panel-owed" role="tabpanel" aria-labelledby="tab-owed" hidden>
       <div class="columns">
         <section class="card">
-          <h2><span aria-hidden="true">🧾</span> Work Purchases</h2>
-          <p class="card-hint">Things you bought for work with your own money. <strong>Not counted as your spending</strong> — this is a reminder of what to claim back from your manager.</p>
+          <h2><span aria-hidden="true">🧾</span> Owed to Me</h2>
+          <p class="card-hint">Money you laid out that someone owes back — a work purchase to claim, or cash you lent a friend. <strong>Never counted as your spending</strong>, because it's coming back to you.</p>
 
           <div class="owed-banner">
             <div class="summary-label">Not cleared yet</div>
-            <div class="savings-balance-value" id="work-outstanding">$0</div>
+            <div class="savings-balance-value" id="owed-outstanding">$0</div>
           </div>
 
-          <ul id="work-list" class="item-list"></ul>
+          <ul id="owed-list" class="item-list"></ul>
 
-          <form id="work-form" class="daily-form owed-form">
-            <input type="date" id="work-date" aria-label="Purchase date" required />
-            <input type="number" inputmode="decimal" id="work-amount" aria-label="Amount you paid" placeholder="Amount" step="0.01" min="0" required />
-            <input type="text" id="work-desc" aria-label="What you bought" placeholder="What did you buy?" required />
+          <form id="owed-form" class="daily-form owed-form">
+            <input type="date" id="owed-date" aria-label="Date you paid it" required />
+            <input type="number" inputmode="decimal" id="owed-amount" aria-label="Amount you paid" placeholder="Amount" step="0.01" min="0" required />
+            <input type="text" id="owed-person" aria-label="Who owes you" placeholder="Who owes you? (e.g. Work)" required />
+            <input type="text" id="owed-desc" aria-label="What it was for" placeholder="What was it for?" required />
             <div class="receipt-picker">
-              <input type="file" accept="image/*" id="work-receipt" aria-label="Receipt photo" hidden />
-              <button type="button" class="receipt-btn" id="work-receipt-btn">📷 Add receipt</button>
-              <button type="button" class="receipt-clear" id="work-receipt-clear" aria-label="Remove attached receipt" title="Remove receipt" hidden>✕</button>
+              <input type="file" accept="image/*" id="owed-receipt" aria-label="Receipt photo" hidden />
+              <button type="button" class="receipt-btn" id="owed-receipt-btn">📷 Add receipt</button>
+              <button type="button" class="receipt-clear" id="owed-receipt-clear" aria-label="Remove attached receipt" title="Remove receipt" hidden>✕</button>
             </div>
-            <button type="submit" class="btn btn-primary">Add purchase</button>
-          </form>
-          <p class="card-hint">A receipt photo is <strong>deleted automatically</strong> when you mark the purchase as cleared — once you've been paid back, it's done its job.</p>
-        </section>
-
-        <section class="card">
-          <h2><span aria-hidden="true">🤝</span> Lent to Roommate</h2>
-          <p class="card-hint">Money you gave your roommate. <strong>Not counted as your spending</strong> — this is a reminder of what's owed back to you.</p>
-
-          <div class="owed-banner">
-            <div class="summary-label">Not cleared yet</div>
-            <div class="savings-balance-value" id="roommate-outstanding">$0</div>
-          </div>
-
-          <ul id="roommate-list" class="item-list"></ul>
-
-          <form id="roommate-form" class="daily-form owed-form">
-            <input type="date" id="roommate-date" aria-label="Date you gave the money" required />
-            <input type="number" inputmode="decimal" id="roommate-amount" aria-label="Amount you gave" placeholder="Amount" step="0.01" min="0" required />
-            <input type="text" id="roommate-desc" aria-label="What it was for" placeholder="What was it for?" required />
             <button type="submit" class="btn btn-primary">Add</button>
           </form>
+          <p class="card-hint">A receipt photo is <strong>deleted automatically</strong> when you tick it as cleared — once you've been paid back, it's done its job.</p>
         </section>
 
         <section class="card">

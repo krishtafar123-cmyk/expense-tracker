@@ -2,7 +2,7 @@
 
 > Planning changes or picking this up after a break? See [ROADMAP.md](ROADMAP.md) for where things stand, ideas not built yet, and the gotchas that caused real bugs.
 
-A small web app to track your salary, fixed expenses, family maintenance, and daily spending, synced across every device via Supabase (free hosted Postgres + auth) and deployed on Vercel (free static hosting).
+A small web app to track your salary, fixed expenses, monthly commitments, and daily spending, synced across every device via Supabase (free hosted Postgres + auth) and deployed on Vercel (free static hosting).
 
 No coding needed for setup — just account creation and copy/pasting keys, which you should do yourself in your own browser.
 
@@ -65,13 +65,14 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_salary_payments.sql](migration_salary_payments.sql) — adds dated Salary Payments (for fortnightly/irregular pay), replacing the old single monthly salary figure.
 - [migration_savings.sql](migration_savings.sql) — adds the Savings tab (deposits/withdrawals with a running balance).
 - [migration_category_budgets.sql](migration_category_budgets.sql) — adds per-category monthly budgets.
-- [migration_reimbursements.sql](migration_reimbursements.sql) — adds the Work Purchases and Lent to Roommate reminders.
+- [migration_reimbursements.sql](migration_reimbursements.sql) — adds the "money owed back to you" reminders.
 - [migration_user_settings.sql](migration_user_settings.sql) — adds the "pay yourself first" savings target behind the safe-to-spend figure.
-- [migration_paid_status.sql](migration_paid_status.sql) — lets you tick fixed expenses and family maintenance off once paid.
+- [migration_paid_status.sql](migration_paid_status.sql) — lets you tick fixed expenses and your monthly commitment off once paid.
 - [migration_fixed_category.sql](migration_fixed_category.sql) — lets a fixed expense act as a spending allowance for a daily category (e.g. Groceries).
 - [migration_debt.sql](migration_debt.sql) — adds debt payoff tracking (set a "total owed" on a fixed expense).
-- [migration_receipts.sql](migration_receipts.sql) — adds receipt photos on daily expenses and work purchases. This one also creates the private `receipts` storage bucket and its access rules, so there's nothing to click through in the Storage dashboard.
+- [migration_receipts.sql](migration_receipts.sql) — adds receipt photos on daily expenses and money owed back to you. This one also creates the private `receipts` storage bucket and its access rules, so there's nothing to click through in the Storage dashboard.
 - [migration_personal_debts.sql](migration_personal_debts.sql) — adds the **Money I Owe** card, for money you owe another person.
+- [migration_owed_person.sql](migration_owed_person.sql) — replaces the fixed "work / roommate" pair with a free-text name, so **Owed to Me** works for anyone. Also makes the monthly commitment label renameable.
 
 A fresh setup via `schema.sql` already includes all of these — no migration needed.
 
@@ -82,9 +83,9 @@ The dashboard is split into five tabs, so you're never scrolling past eleven car
 | Tab | What's on it |
 |---|---|
 | **🏠 Home** | Your totals including **Remaining**, this pay period, insights, the 6-month chart |
-| **📋 Monthly** | Salary payments, monthly setup (family maintenance + fixed expenses), debt payoff |
+| **📋 Monthly** | Salary payments, monthly setup (your monthly commitment + fixed expenses), debt payoff |
 | **🧾 Spending** | Daily expenses and category budgets |
-| **🤝 Owed** | Work purchases, lent to roommate, money you owe |
+| **🤝 Owed** | Who owes you, and who you owe |
 | **🏦 Savings** | Deposits, withdrawals and your running balance |
 
 The month arrows at the top apply to every tab. Whichever tab you were last on is remembered, so reopening the app puts you back where you were rather than always on Home.
@@ -97,7 +98,7 @@ The app tracks three different things that all sound like "debt". They behave di
 
 | Card | Direction | Counts as spending? |
 |---|---|---|
-| **Work Purchases** / **Lent to Roommate** | Someone owes **you** | Never — it's money coming back |
+| **Owed to Me** | Someone owes **you** | Never — it's money coming back |
 | **Money I Owe** | **You** owe a person | Yes, in the month you pay it back |
 | **Debt payoff** (on a fixed expense) | A finite debt with monthly instalments | Yes, as the fixed expense it already is |
 
@@ -158,16 +159,16 @@ A service worker caches the app shell, so the app opens instantly and still load
 - **This pay period**: pay is fortnightly but budgets are monthly, and the two never line up. This card shows the current fortnight — what you were paid, what you've spent, what's left before the next payday, and **Safe to spend today**. The schedule isn't configured anywhere: it's derived from your logged salary payments, since any real payment date anchors the fortnight. Monthly fixed costs are charged to the cycle as a 14/days-in-month share rather than pretending a fortnight carries a whole month of rent, and the card says so.
 - **Pay yourself first**: set an amount to set aside each payday and it's reserved *before* anything counts as spendable, which is what makes saving stick. Money you've already moved to savings this cycle counts towards the target, so actually transferring it doesn't reduce your spendable figure a second time.
 - **Three-payday months**: fortnightly pay means 26 paydays a year, not 24, so exactly two months carry a third one. Budgeting as though every month has two makes that third pay a windfall — an insight flags it with the date so it doesn't quietly get absorbed.
-- **Monthly Setup** (family maintenance, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
+- **Monthly Setup** (your monthly commitment, fixed expenses) is saved per calendar month, so changing next month's rent doesn't rewrite history. Use **"Copy from previous month"** to carry values forward instead of retyping them.
 - **Daily Expenses** default to today's date, so logging is just category + amount. Use **Change** on the date line to back-date something you forgot. The **Today** card shows just today's spending and naturally shows $0 once a new day starts — nothing is deleted, it's just filtered by date.
 - **Editing**: every row in every list has a ✎ button that swaps it into an inline form. Saving reloads the month, so totals stay correct even if you move an entry to a different date.
-- **Work Purchases** and **Lent to Roommate**: money you laid out that someone owes back to you. **Neither counts as your spending** — they're stored in a separate table so they can never reach Remaining, the trend chart, budgets or any insight. They're also not tied to a month: something bought in June still shows as outstanding in August, because you still haven't been paid back. Press **✓** to mark an item cleared once you get the money (it records the date and greys the row out); **↺** reopens it if you marked it too early. Outstanding totals also appear in Insights so they don't get forgotten.
+- **Owed to Me**: money you laid out that someone owes back to you -- name whoever it is, so it works for an employer, a friend or a landlord alike. **Neither counts as your spending** — they're stored in a separate table so they can never reach Remaining, the trend chart, budgets or any insight. They're also not tied to a month: something bought in June still shows as outstanding in August, because you still haven't been paid back. Press **✓** to mark an item cleared once you get the money (it records the date and greys the row out); **↺** reopens it if you marked it too early. Outstanding totals also appear in Insights so they don't get forgotten.
 - **Savings**: dated deposits and withdrawals, showing an all-time running balance plus this month's activity.
   - **Deposit** = money moved *into* savings. Balance goes up, **Remaining** goes down (it's no longer available to spend).
   - **Withdrawal** = money taken *back out* of savings to spend. Balance goes down, **Remaining** goes up.
   - The big number on the card is the all-time balance (every deposit minus every withdrawal, carried across months). The list below it shows only the current month's activity.
   - If you withdraw more than you deposit in a month, that month's net savings is negative and correctly *increases* Remaining.
-- **Last 6 months**: a bar chart comparing income against total spending (daily + fixed + family maintenance) per month.
+- **Last 6 months**: a bar chart comparing income against total spending (daily + fixed + your monthly commitment + money you paid back) per month.
 - **Category Budgets**: an optional monthly cap per category, with a bar showing what you've spent against it this month. Budgets are not per-month — one cap applies every month until you change it.
   - **Suggest from my history** fills them in from your own spending: for each category it takes the *lowest* month you actually achieved in the last 6 (ignoring months where you spent nothing in that category), so the target is one you've already proven is doable rather than an invented number. If those add up to more than what's left after salary − family − fixed, they're all scaled down proportionally to fit.
   - This is arithmetic on your own numbers, not financial advice — treat the suggestions as a starting point and edit any of them.

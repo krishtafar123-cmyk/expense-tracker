@@ -75,6 +75,9 @@ create index if not exists idx_category_budgets_user on category_budgets(user_id
 create table if not exists user_settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
   save_per_cycle numeric not null default 0,
+  -- What to call the fixed monthly commitment on screen. "Family
+  -- maintenance" is one household's wording, not everyone's.
+  family_label text,
   updated_at timestamptz not null default now()
 );
 
@@ -84,7 +87,9 @@ create table if not exists reimbursements (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   date date not null,
-  owed_by text not null check (owed_by in ('work', 'roommate')),
+  -- Free text, not a fixed set: who owes you money is nobody else's
+  -- business to predict. An employer, a friend, a landlord.
+  person text not null default 'Someone',
   description text not null,
   amount numeric not null default 0,
   settled boolean not null default false,
@@ -113,7 +118,7 @@ create table if not exists personal_debts (
 );
 
 create index if not exists idx_personal_debts_user on personal_debts(user_id, repaid, date);
-create index if not exists idx_reimbursements_user on reimbursements(user_id, owed_by, settled, date);
+create index if not exists idx_reimbursements_user on reimbursements(user_id, settled, date);
 create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
 create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
 create index if not exists idx_salary_payments_date on salary_payments(user_id, date);

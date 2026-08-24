@@ -99,6 +99,34 @@ Typography is Inter from Google Fonts, with the old system stack as the fallback
 
 **Gotcha that bit here:** `.negative` sets red text, but on `.summary-card-highlight` (the Remaining tile) that was red on the highlight colour — 1.05:1, invisible, at exactly the moment the number matters most. The tile now flips whole via `.is-negative`. Any future "highlight" surface needs the same treatment; don't just set a text colour on it.
 
+## Keeping it generic
+
+The app was built for one person, and their life had leaked into it: two fixed
+categories called "work" and "roommate", and a field labelled "Family
+Maintenance". Anyone else running a copy would have been stuck with someone
+else's living arrangements. Fixed 2026-08-24 — keep it that way:
+
+- **Who owes you is free text**, not an enum. `reimbursements.person` replaced
+  `owed_by check (owed_by in ('work','roommate'))`, which also collapsed two
+  near-identical cards into one. `personal_debts` was already built this way.
+  Insights name the person and cap at the two largest, rolling the rest into
+  one line, so a long list of small IOUs can't crowd out everything else.
+- **The monthly commitment's label is a setting**, `user_settings.family_label`.
+  The *column* is still `family_maintenance` — renaming it would mean migrating
+  every row for a cosmetic win — but nothing on screen says so unless the user
+  typed it. Anything new that shows that label must read the setting, not
+  hardcode a string; there are four such places already.
+- **Still hardcoded, and would need doing before a wider release:** currency is
+  AUD in the `Intl.NumberFormat` in `dashboard.js`, and the pay cycle assumes
+  a fortnight.
+
+Publishing model, decided with the user: **share the code, not a service.**
+Everyone deploys their own Supabase project and their own copy, so no one
+else's data ever lands in anyone's database. That's also what keeps the
+6-digit PIN reasonable — it guards a single-user instance, not a shared one.
+If that ever changes to a hosted service, the PIN has to stop being the
+account password first.
+
 ## Deliberate non-goals
 
 - **No analytics.** No third-party scripts. External requests are limited to the supabase-js CDN and the Inter webfont — nothing else.
