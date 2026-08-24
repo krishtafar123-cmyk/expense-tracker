@@ -35,6 +35,9 @@ create table if not exists daily_expenses (
   category text not null default 'Other',
   amount numeric not null default 0,
   note text,
+  -- Object path in the private `receipts` bucket, set up at the end of this
+  -- file. Null means no photo was attached.
+  receipt_path text,
   created_at timestamptz not null default now()
 );
 
@@ -86,6 +89,9 @@ create table if not exists reimbursements (
   amount numeric not null default 0,
   settled boolean not null default false,
   settled_on date,
+  -- Deleted automatically once the claim is cleared: the photo only exists to
+  -- get the money back, so it stops earning its keep the moment it arrives.
+  receipt_path text,
   created_at timestamptz not null default now()
 );
 
@@ -135,3 +141,41 @@ create policy "own user_settings" on user_settings
 drop policy if exists "own reimbursements" on reimbursements;
 create policy "own reimbursements" on reimbursements
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------- Receipt photo storage ----------
+-- A private bucket: nothing here is reachable without a signed URL, which the
+-- app mints per view and lets expire. The size cap and image-only allow-list
+-- are enforced by Storage itself, so a bad upload is rejected at the door.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('receipts', 'receipts', false, 5242880,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
+on conflict (id) do update
+  set public = false,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+-- Every object lives under a folder named after its owner's user id, so "the
+-- first path segment is my own uid" is the entire access rule.
+drop policy if exists "own receipts read" on storage.objects;
+create policy "own receipts read" on storage.objects
+  for select using (
+    bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "own receipts write" on storage.objects;
+create policy "own receipts write" on storage.objects
+  for insert with check (
+    bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "own receipts update" on storage.objects;
+create policy "own receipts update" on storage.objects
+  for update using (
+    bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "own receipts delete" on storage.objects;
+create policy "own receipts delete" on storage.objects
+  for delete using (
+    bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text
+  );

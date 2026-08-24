@@ -848,10 +848,13 @@ function escapeAttr(str) {
 
 // `description` names the row, so a screen reader announces "Delete Rent"
 // rather than eight identical "Delete" buttons.
-function rowActions(description) {
+// `extra` lets a row slot in its own buttons (the receipt 📎) ahead of the
+// edit and delete pair every row shares.
+function rowActions(description, extra) {
   const label = escapeAttr(description || "entry");
   return `
     <span class="item-actions">
+      ${extra || ""}
       <button class="edit-btn" aria-label="Edit ${label}" title="Edit">✎</button>
       <button class="delete-btn" aria-label="Delete ${label}" title="Delete">✕</button>
     </span>
@@ -1436,6 +1439,7 @@ function renderOwedList(kind) {
       </div>
       <span class="item-amount">${fmt(r.amount)}</span>
       <span class="item-actions">
+        ${receiptButton(r, describe)}
         <button class="settle-btn" aria-label="${escapeAttr((r.settled ? "Reopen, not actually cleared: " : "Mark as cleared: ") + describe)}"
                 title="${r.settled ? "Reopen — not cleared after all" : "Mark as cleared"}">${r.settled ? "↺" : "✓"}</button>
         <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
@@ -1443,6 +1447,7 @@ function renderOwedList(kind) {
       </span>
     `;
 
+    wireReceiptButton(li, r);
     li.querySelector(".settle-btn").addEventListener("click", () => toggleOwedSettled(r));
     li.querySelector(".delete-btn").addEventListener("click", () => deleteOwed(r.id));
     attachEdit(li, r, [
@@ -1459,18 +1464,38 @@ async function toggleOwedSettled(item) {
   const next = !item.settled;
   // Record when it cleared, so the history shows how long you waited.
   const patch = { settled: next, settled_on: next ? toDateStr(new Date()) : null };
+  // The receipt exists to get the money back. Once it's back, the photo is
+  // just a bill sitting in storage, so clearing takes it with it. Reopening
+  // can't bring it back, hence the toast says so plainly rather than letting
+  // it vanish quietly.
+  const droppingReceipt = next && !!item.receipt_path;
+  if (droppingReceipt) patch.receipt_path = null;
+
   const { error } = await sb.from("reimbursements").update(patch).eq("id", item.id);
   if (error) { console.error(error); toast("Failed to update"); return; }
+
+  if (droppingReceipt) {
+    // Only after the row has let go of the path — if this ran first and the
+    // update then failed, the row would point at a file that no longer exists.
+    await deleteReceipt(item.receipt_path);
+    item.receipt_path = null;
+  }
+
   item.settled = patch.settled;
   item.settled_on = patch.settled_on;
   renderOwedList(item.owed_by);
   renderInsights();
-  toast(next ? "Cleared" : "Reopened — still owed");
+  toast(next
+    ? (droppingReceipt ? "Cleared — receipt deleted" : "Cleared")
+    : "Reopened — still owed");
 }
 
 async function deleteOwed(id) {
+  // Read the path before the row goes, or there's nothing left to clean up.
+  const receiptPath = (reimbursements.find((r) => r.id === id) || {}).receipt_path;
   const { error } = await sb.from("reimbursements").delete().eq("id", id);
   if (error) { console.error(error); toast("Failed to delete"); return; }
+  await deleteReceipt(receiptPath);
   const removed = reimbursements.find((r) => r.id === id);
   reimbursements = reimbursements.filter((r) => r.id !== id);
   if (removed) renderOwedList(removed.owed_by);
@@ -1496,17 +1521,172 @@ function wireOwedForm(kind) {
       return;
     }
 
+    // Only work purchases get a receipt picker — a roommate loan is a note to
+    // yourself, not something you have to prove to anyone.
+    const picker = kind === "work" ? workReceiptPicker : null;
+    const receiptFile = picker && picker.file();
+    const receiptOk = receiptFile ? await attachReceipt("reimbursements", data, receiptFile, picker) : true;
+
     reimbursements.unshift(data);
     amountEl.value = "";
     descEl.value = "";
     dateEl.value = toDateStr(new Date());
     renderOwedList(kind);
     renderInsights();
-    toast("Saved as a reminder — not counted as spending");
+    // attachReceipt has already said what went wrong; don't paper over it.
+    if (receiptOk) toast("Saved as a reminder — not counted as spending");
   });
 }
 
 for (const kind of Object.keys(OWED_KINDS)) wireOwedForm(kind);
+
+// ---------- Receipts ----------
+// Photos live in a private Storage bucket, one folder per user, and are only
+// ever reached through a short-lived signed URL. The row holds the object
+// path; a null path just means no photo, so a database that hasn't had
+// migration_receipts.sql run yet simply never shows a receipt button.
+const RECEIPT_BUCKET = "receipts";
+const RECEIPT_MAX_PX = 1600;
+const RECEIPT_QUALITY = 0.82;
+// Below this, re-encoding tends to cost more quality than it saves bytes.
+const RECEIPT_SKIP_BYTES = 700 * 1024;
+
+// A phone camera produces 3-5 MB per shot, which is slow to send on mobile
+// data and pointless for something that only has to be legible. Anything that
+// won't decode (an unusual HEIC, say) falls through to the original file
+// rather than failing the upload outright.
+async function shrinkReceipt(file) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, RECEIPT_MAX_PX / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size <= RECEIPT_SKIP_BYTES) { bitmap.close(); return file; }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", RECEIPT_QUALITY));
+    // Re-encoding can inflate an already-optimised file; keep whichever is smaller.
+    return blob && blob.size < file.size ? blob : file;
+  } catch (e) {
+    console.error(e);
+    return file;
+  }
+}
+
+async function uploadReceipt(file) {
+  const body = await shrinkReceipt(file);
+  const type = body.type || file.type || "image/jpeg";
+  const ext = type === "image/jpeg" ? "jpg" : (type.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5);
+  // The uid folder is what the Storage policy checks, so it isn't cosmetic.
+  const path = `${currentUser.id}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from(RECEIPT_BUCKET).upload(path, body, { contentType: type, upsert: false });
+  if (error) { console.error(error); return null; }
+  return path;
+}
+
+// Best-effort: a receipt that outlives its row is clutter, never a
+// correctness problem, so a failure here must not block the caller.
+async function deleteReceipt(path) {
+  if (!path) return;
+  const { error } = await sb.storage.from(RECEIPT_BUCKET).remove([path]);
+  if (error) console.error(error);
+}
+
+// Called only after the row itself is safely saved, so a Storage or migration
+// problem costs the photo and never the expense.
+async function attachReceipt(table, row, file, picker) {
+  toast("Uploading receipt…");
+  const path = await uploadReceipt(file);
+  if (!path) { toast("Saved — but the receipt didn't upload"); return false; }
+
+  const { error } = await sb.from(table).update({ receipt_path: path }).eq("id", row.id);
+  if (error) {
+    console.error(error);
+    // Nothing points at it now, so leaving it would orphan the object.
+    await deleteReceipt(path);
+    toast("Saved — but receipts need migration_receipts.sql run first");
+    return false;
+  }
+
+  row.receipt_path = path;
+  if (picker) picker.clear();
+  return true;
+}
+
+async function openReceipt(path) {
+  const { data, error } = await sb.storage.from(RECEIPT_BUCKET).createSignedUrl(path, 60);
+  if (error || !data) { console.error(error); toast("Couldn't open that receipt"); return; }
+  showReceiptViewer(data.signedUrl);
+}
+
+// Markup for the 📎 button on a row that has a photo. Rendered inside
+// .item-actions alongside edit and delete.
+function receiptButton(row, description) {
+  if (!row.receipt_path) return "";
+  return `<button class="receipt-view-btn" aria-label="${escapeAttr("View receipt for " + description)}" title="View receipt">📎</button>`;
+}
+
+function wireReceiptButton(li, row) {
+  const btn = li.querySelector(".receipt-view-btn");
+  if (btn) btn.addEventListener("click", () => openReceipt(row.receipt_path));
+}
+
+// ---------- Receipt viewer ----------
+// A plain overlay rather than a new tab: the app is usually running as an
+// installed PWA, where opening a tab drops the user out into the browser.
+function showReceiptViewer(url) {
+  const box = document.getElementById("receipt-viewer");
+  document.getElementById("receipt-image").src = url;
+  box.hidden = false;
+  document.getElementById("receipt-close").focus();
+}
+
+function hideReceiptViewer() {
+  const box = document.getElementById("receipt-viewer");
+  if (box.hidden) return;
+  box.hidden = true;
+  // Drop the signed URL so the image isn't held in memory after closing.
+  document.getElementById("receipt-image").removeAttribute("src");
+}
+
+document.getElementById("receipt-close").addEventListener("click", hideReceiptViewer);
+document.getElementById("receipt-viewer").addEventListener("click", (e) => {
+  // Backdrop only — a tap on the photo itself shouldn't close it.
+  if (e.target.id === "receipt-viewer") hideReceiptViewer();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideReceiptViewer();
+});
+
+// ---------- Receipt picker (the camera button on a form) ----------
+function wireReceiptPicker(prefix) {
+  const input = document.getElementById(prefix + "-receipt");
+  const btn = document.getElementById(prefix + "-receipt-btn");
+  const clearBtn = document.getElementById(prefix + "-receipt-clear");
+
+  function refresh() {
+    const file = (input.files && input.files[0]) || null;
+    btn.textContent = file ? "📎 Photo attached" : "📷 Add receipt";
+    btn.classList.toggle("has-file", !!file);
+    clearBtn.hidden = !file;
+  }
+
+  btn.addEventListener("click", () => input.click());
+  input.addEventListener("change", refresh);
+  clearBtn.addEventListener("click", () => { input.value = ""; refresh(); });
+  refresh();
+
+  return {
+    file: () => (input.files && input.files[0]) || null,
+    clear: () => { input.value = ""; refresh(); },
+  };
+}
+
+const dailyReceiptPicker = wireReceiptPicker("daily");
+const workReceiptPicker = wireReceiptPicker("work");
 
 // ---------- Daily expenses ----------
 onSubmitLocked("daily-form", async () => {
@@ -1522,6 +1702,11 @@ onSubmitLocked("daily-form", async () => {
     .insert({ user_id: currentUser.id, date, category, amount, note: note || null })
     .select().single();
   if (error) { console.error(error); toast("Failed to add expense"); return; }
+
+  const receiptFile = dailyReceiptPicker.file();
+  // attachReceipt has already explained any failure; overwriting that with a
+  // cheerful "Expense added" would hide the one thing worth reading.
+  const receiptOk = receiptFile ? await attachReceipt("daily_expenses", data, receiptFile, dailyReceiptPicker) : true;
 
   amountInput.value = "";
   noteInput.value = "";
@@ -1540,12 +1725,15 @@ onSubmitLocked("daily-form", async () => {
     renderQuickAdd();
     renderSummary();
   }
-  toast("Expense added");
+  if (receiptOk) toast(receiptFile ? "Expense added with receipt" : "Expense added");
 });
 
 async function deleteDailyExpense(id) {
+  // Read the path before the row goes, or there's nothing left to clean up.
+  const receiptPath = (allDailyExpenses.find((d) => d.id === id) || {}).receipt_path;
   const { error } = await sb.from("daily_expenses").delete().eq("id", id);
   if (error) { console.error(error); toast("Failed to delete"); return; }
+  await deleteReceipt(receiptPath);
   dailyExpenses = dailyExpenses.filter((d) => d.id !== id);
   // The wide slice feeds the trend chart, the week-over-week insight and the
   // quick-add suggestions, so it has to lose the row too — otherwise a deleted
@@ -1569,14 +1757,16 @@ function renderDailyList() {
   for (const d of dailyExpenses) {
     const li = document.createElement("li");
     const dateLabel = new Date(d.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    const describe = d.category + " " + fmt(d.amount) + " on " + dateLabel;
     li.innerHTML = `
       <div class="item-main">
         <span class="item-title">${escapeHtml(d.category)}</span>
         <span class="item-sub">${dateLabel}${d.note ? " · " + escapeHtml(d.note) : ""}</span>
       </div>
       <span class="item-amount">${fmt(d.amount)}</span>
-      ${rowActions(d.category + " " + fmt(d.amount) + " on " + dateLabel)}
+      ${rowActions(describe, receiptButton(d, describe))}
     `;
+    wireReceiptButton(li, d);
     li.querySelector(".delete-btn").addEventListener("click", () => deleteDailyExpense(d.id));
     attachEdit(li, d, [
       { key: "date", type: "date", required: true },

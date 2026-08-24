@@ -1050,3 +1050,97 @@ input, select { font-family: inherit; }
   font-size: 13px;
   font-weight: 600;
 }
+
+/* ---------- Receipts ---------- */
+.receipt-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.receipt-btn {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  min-height: 38px;
+  text-align: center;
+}
+.receipt-btn:hover { border-color: var(--primary); color: var(--text); }
+/* Once a photo is chosen the control stops being an invitation and starts
+   being a statement, so it drops the dashed "empty slot" look. */
+.receipt-btn.has-file {
+  border-style: solid;
+  border-color: var(--green);
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* Scoped to :not([hidden]) so the hidden attribute still wins over display. */
+.receipt-clear:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.receipt-clear {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 14px;
+  min-width: 38px;
+  min-height: 38px;
+}
+.receipt-clear:hover { color: var(--red); border-color: var(--red); }
+
+.receipt-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 8px;
+}
+.receipt-view-btn:hover { color: var(--primary); }
+
+/* ---------- Receipt viewer ---------- */
+/* Same :not([hidden]) scoping as above — this one is toggled constantly. */
+.receipt-viewer:not([hidden]) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.receipt-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.receipt-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.receipt-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  /* Fixed light-on-dark: the backdrop is always dark, in either theme. */
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 16px;
+}
+.receipt-close:hover { background: rgba(255, 255, 255, 0.28); }

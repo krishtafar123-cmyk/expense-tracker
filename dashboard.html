@@ -207,6 +207,11 @@
             </select>
             <input type="number" inputmode="decimal" id="daily-amount" aria-label="Expense amount" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="daily-note" aria-label="Expense note (optional)" placeholder="Note (optional)" />
+            <div class="receipt-picker">
+              <input type="file" accept="image/*" id="daily-receipt" aria-label="Receipt photo" hidden />
+              <button type="button" class="receipt-btn" id="daily-receipt-btn">📷 Add receipt</button>
+              <button type="button" class="receipt-clear" id="daily-receipt-clear" aria-label="Remove attached receipt" title="Remove receipt" hidden>✕</button>
+            </div>
             <button type="submit" class="btn btn-primary">Add Expense</button>
           </form>
 
@@ -251,8 +256,14 @@
             <input type="date" id="work-date" aria-label="Purchase date" required />
             <input type="number" inputmode="decimal" id="work-amount" aria-label="Amount you paid" placeholder="Amount" step="0.01" min="0" required />
             <input type="text" id="work-desc" aria-label="What you bought" placeholder="What did you buy?" required />
+            <div class="receipt-picker">
+              <input type="file" accept="image/*" id="work-receipt" aria-label="Receipt photo" hidden />
+              <button type="button" class="receipt-btn" id="work-receipt-btn">📷 Add receipt</button>
+              <button type="button" class="receipt-clear" id="work-receipt-clear" aria-label="Remove attached receipt" title="Remove receipt" hidden>✕</button>
+            </div>
             <button type="submit" class="btn btn-primary">Add purchase</button>
           </form>
+          <p class="card-hint">A receipt photo is <strong>deleted automatically</strong> when you mark the purchase as cleared — once you've been paid back, it's done its job.</p>
         </section>
 
         <section class="card">
@@ -301,6 +312,14 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Receipt viewer. An in-app overlay rather than a new tab, because the app
+       is usually running as an installed PWA where a tab drops you out into
+       the browser. -->
+  <div id="receipt-viewer" class="receipt-viewer" role="dialog" aria-modal="true" aria-label="Receipt photo" hidden>
+    <button type="button" id="receipt-close" class="receipt-close" aria-label="Close receipt">✕</button>
+    <img id="receipt-image" class="receipt-image" alt="Receipt photo" />
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="config.js"></script>

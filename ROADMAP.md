@@ -17,12 +17,22 @@ Live at https://krishtafar123-cmyk-expense-tracker.vercel.app/, deployed from `m
 
 ## Picking up from here (last session)
 
-The user chose four features. Three are built and pushed:
+All four features the user chose are now built:
 
 1. **Debt payoff** — done. `migration_debt.sql` run. Set a "total owed" via ✎ on a fixed expense; what's left is derived from paid ticks, not stored.
 2. **Auto-roll monthly setup** — done, no migration. Current month carries forward on load; a payday nudge fires if the fortnight has started with no pay logged.
-3. **Quick-add chips** — pushed, but **verification was cut short** — the suggestion logic (60-day window, 2+ occurrences, undo) has not been exercised end to end. Worth checking first.
-4. **Receipt photos — NOT STARTED.** The user also asked that a receipt be **deleted automatically once the reimbursement is cleared**. Needs a Supabase Storage bucket plus policies (a manual dashboard step for them), an upload control on the daily/work-purchase forms, and a delete hook in `toggleOwedSettled`.
+3. **Quick-add chips** — done and now verified. The suggestion logic was exercised against stubbed data (threshold, 60-day boundary, grouping, sort/cap, undo): all passing. Verification turned up one real bug, now fixed — chips rendered while viewing a *future* month, where a tap logs to today and so looked like a no-op. `renderQuickAdd` now bails unless you're viewing the month containing today.
+4. **Receipt photos** — done, and `migration_receipts.sql` has been run. If a photo ever fails to attach, the expense itself still saves and the message names the migration.
+
+### What receipts look like in the code
+
+- `migration_receipts.sql` adds `receipt_path` to `daily_expenses` and `reimbursements`, and creates the private `receipts` bucket **and its policies in SQL** — deliberately, so the user doesn't have to click through the Storage dashboard.
+- Objects are stored at `<user_id>/<uuid>.<ext>`. The uid folder is not cosmetic: the Storage policy is `(storage.foldername(name))[1] = auth.uid()::text`. Changing the path shape breaks access.
+- The bucket is private; viewing mints a 60-second signed URL and shows it in an in-app overlay (`#receipt-viewer`) rather than a new tab, because a new tab drops an installed PWA out into the browser.
+- Photos are downscaled to 1600px client-side before upload; anything that won't decode falls back to the original file rather than failing.
+- **The row is always saved first, then the photo attached.** A Storage or missing-migration failure costs the photo, never the expense — see `attachReceipt`, which also deletes the uploaded object if the row update then fails, so nothing is orphaned.
+- Clearing a work purchase deletes its receipt (what the user asked for). `toggleOwedSettled` nulls the column **before** removing the object, so a failure can't leave a row pointing at a missing file. It's irreversible, so the toast says "Cleared — receipt deleted" rather than letting it vanish quietly.
+- Only work purchases get a picker; a roommate loan is a note to yourself, not something you have to prove.
 
 **Do not test against the user's live Supabase data.** A test-account sign-in failed silently once and an existing session for their real account was used instead, writing two rows into real data (removed). Verify logic in isolation — extract the function from the deployed `dashboard.js` and run it with stubbed dependencies, as the debt, carry-forward and cent-splitting tests do. If a live check is genuinely needed, ask first.
 
@@ -41,6 +51,8 @@ These caused real bugs or are easy to break:
 9. **Escaping** — `escapeHtml()` does not escape quotes. Anything interpolated into an HTML *attribute* needs `escapeAttr()`.
 10. **List rows are a grid, not `space-between` flex.** With three flex children the free space gets distributed *around* the amount, so amounts drift horizontally with the length of the name and never form a column. Keep the fixed money column.
 11. **Reimbursements must never enter a spending total.** Work purchases and roommate loans are money owed *back* to you; they are excluded from Remaining, the trend chart, budgets and every spending insight by living in their own table. Don't "helpfully" fold them in.
+12. **Anything "right now" must check it's being viewed in the current month.** Quick-add chips and the pay-cycle card both act on *today*, so in another month they'd either mislead or silently do nothing. Both use the same `viewingCurrentMonth` check. A past month often hides such things by accident (no recent data); a future month does not.
+13. **A file in Storage and a path in a row can disagree.** Always update the row first and delete the object second, so a failure leaves a harmless orphan rather than a row pointing at a file that's gone. Deletes are best-effort and must never block the thing the user actually asked for.
 
 ## Ideas not built yet
 

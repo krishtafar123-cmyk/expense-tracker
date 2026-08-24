@@ -70,8 +70,22 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_paid_status.sql](migration_paid_status.sql) — lets you tick fixed expenses and family maintenance off once paid.
 - [migration_fixed_category.sql](migration_fixed_category.sql) — lets a fixed expense act as a spending allowance for a daily category (e.g. Groceries).
 - [migration_debt.sql](migration_debt.sql) — adds debt payoff tracking (set a "total owed" on a fixed expense).
+- [migration_receipts.sql](migration_receipts.sql) — adds receipt photos on daily expenses and work purchases. This one also creates the private `receipts` storage bucket and its access rules, so there's nothing to click through in the Storage dashboard.
 
-A fresh setup via `schema.sql` already includes both — no migration needed.
+A fresh setup via `schema.sql` already includes all of these — no migration needed.
+
+## Receipt photos
+
+Tap **📷 Add receipt** on a daily expense or a work purchase to attach a photo, straight from the camera or your gallery. Rows that have one show a **📎** you can tap to view it.
+
+A few things worth knowing:
+
+- **Photos are private.** They live in a Supabase Storage bucket that isn't publicly readable. Each photo is stored under a folder named after your user id, and the access rules only ever let you reach your own — the same rule the database tables use. Viewing one mints a link that expires after a minute.
+- **Photos are shrunk before upload** — down to 1600px on the long edge — so a 4 MB camera shot doesn't cost 4 MB of mobile data. Storage also refuses anything over 5 MB or anything that isn't an image.
+- **Clearing a work purchase deletes its receipt automatically.** Once you've been paid back, the photo has done its job, so it's removed rather than left sitting in storage. This can't be undone — reopening the purchase won't bring the photo back. The toast says "Cleared — receipt deleted" when it happens.
+- **Deleting a row deletes its photo too**, so nothing is left orphaned.
+
+If you attach a photo before running the migration, the expense still saves — you'll just get "Saved — but receipts need migration_receipts.sql run first". The money is never lost because of a photo problem.
 
 ## Allow the "Forgot PIN?" emails to work
 
