@@ -58,11 +58,11 @@ These caused real bugs or are easy to break:
 
 Roughly in order of value for how this app is actually used:
 
-**Recurring / automation**
-- Auto-roll fixed expenses and family maintenance into each new month, instead of the manual "Copy from previous month" prompt.
-- Optional reminder to log the fortnightly salary on payday.
-
 **Offline entry** — the service worker caches the app shell, so the app *opens* offline, but adding an expense still needs the network. Queueing writes locally and syncing on reconnect is the main missing piece for logging things out and about.
+
+**Receipts, second pass**
+- A receipt can only be attached while *creating* a row. Forget one, or have an upload fail, and the only way back is to delete the expense and re-add it. Attaching from an existing row via ✎ is the obvious gap.
+- Nothing ever lists what's actually in the bucket, so an orphan from a half-failed delete is invisible.
 
 **Reporting**
 - Year-to-date and per-year views; the trend chart is fixed at 6 months.
