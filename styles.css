@@ -310,7 +310,14 @@ input, select { font-family: inherit; }
 }
 
 /* ---------- Buttons ---------- */
+/* 44px is the phone touch-target guideline; padding alone left these at 37px.
+   inline-flex centres the label now that the height is driven by min-height
+   rather than by the padding. */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: none;
   border-radius: 12px;
   padding: 10px 16px;
@@ -318,6 +325,11 @@ input, select { font-family: inherit; }
   font-weight: 600;
   transition: background 0.15s;
 }
+
+/* The topbar is sticky and dense, and these are secondary chrome rather than
+   the actions you came to tap — 36px keeps the bar from eating the screen and
+   still clears the 24px WCAG AA minimum comfortably. */
+.topbar-user .btn { min-height: 36px; padding: 7px 12px; }
 
 .btn-primary { background: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary-hover); }
