@@ -1,5 +1,5 @@
 // Bump CACHE when the shell changes so old entries are cleared on activate.
-const CACHE = "expense-tracker-v17";
+const CACHE = "expense-tracker-v18";
 
 const SHELL = [
   "./",

@@ -1325,3 +1325,20 @@ input, select { font-family: inherit; }
   .topbar { padding: 10px 14px; gap: 8px; }
   .topbar-remaining { padding: 4px 10px; gap: 6px; }
 }
+
+/* Dismiss on a warning you can't act on (the logging-gap notice). Pushed to
+   the far edge by margin-left:auto rather than a wrapper, since .insight-item
+   is already a flex row. */
+.insight-dismiss {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+}
+.insight-dismiss:hover { color: var(--text); background: var(--input-bg); }

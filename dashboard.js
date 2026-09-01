@@ -2389,6 +2389,20 @@ function renderInsights() {
     const li = document.createElement("li");
     li.className = "insight-item insight-" + insight.tone;
     li.innerHTML = `<span class="insight-icon">${insight.icon}</span><span>${insight.text}</span>`;
+    // Only the logging-gap warning is dismissible. Every other insight is
+    // derived from current numbers and will clear itself when they change;
+    // this one can describe days you've decided you can't reconstruct, and a
+    // warning you can't act on teaches you to ignore the whole card.
+    if (insight.dismiss) {
+      const btn = document.createElement("button");
+      btn.className = "insight-dismiss";
+      btn.type = "button";
+      btn.textContent = "✕";
+      btn.title = "Dismiss";
+      btn.setAttribute("aria-label", "Dismiss: " + insight.text);
+      btn.addEventListener("click", () => { insight.dismiss(); renderInsights(); });
+      li.appendChild(btn);
+    }
     list.appendChild(li);
   }
   card.hidden = false;
@@ -2404,6 +2418,27 @@ const MAX_GAP_DAYS_LISTED = 3;
 // them. Today counts only once it's late enough that an empty day is more
 // likely forgotten than genuinely empty — nobody has logged breakfast at 7am.
 const GAP_TODAY_COUNTS_AFTER_HOUR = 20;
+
+// Dismissing records the month and how many gaps were known at the time, so
+// the warning stays gone for days you've written off but comes back if you
+// miss another one. Per-device and not worth syncing — it's about whether you
+// want to be told, not about the data itself.
+const GAP_ACK_KEY = "expensetracker_gaps_ack";
+
+function gapAck() {
+  try { return JSON.parse(localStorage.getItem(GAP_ACK_KEY) || "null"); } catch (e) { return null; }
+}
+
+function ackGaps(count) {
+  try {
+    localStorage.setItem(GAP_ACK_KEY, JSON.stringify({ month: monthKey(currentMonth), count }));
+  } catch (e) { /* private mode */ }
+}
+
+function gapsDismissed(count) {
+  const ack = gapAck();
+  return !!ack && ack.month === monthKey(currentMonth) && count <= ack.count;
+}
 
 function unloggedDays() {
   const today = new Date();
@@ -2445,7 +2480,7 @@ function generateInsights() {
   // actually in; a past month left empty was presumably left empty on purpose.
   if (viewingCurrentMonth && daysElapsed >= MIN_DAYS_BEFORE_GAP_NUDGE) {
     const gaps = unloggedDays();
-    if (gaps.length > 0) {
+    if (gaps.length > 0 && !gapsDismissed(gaps.length)) {
       const shown = gaps.slice(-MAX_GAP_DAYS_LISTED)
         .map((d) => d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }));
       const more = gaps.length - shown.length;
@@ -2456,6 +2491,7 @@ function generateInsights() {
         text: gaps.length === 1
           ? `Nothing logged for ${list}. If you did spend that day, these figures are low.`
           : `${gaps.length} days this month have nothing logged (${list}). Anything spent on those days is missing from every figure here.`,
+        dismiss: () => ackGaps(gaps.length),
       });
     }
   }
