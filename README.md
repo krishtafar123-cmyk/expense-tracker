@@ -100,14 +100,14 @@ The app tracks three different things that all sound like "debt". They behave di
 | Card | Direction | Counts as spending? |
 |---|---|---|
 | **Owed to Me** | Someone owes **you** | Never — it's money coming back |
-| **Money I Owe** | **You** owe a person | Yes, in the month you pay it back |
+| **Money I Owe** | **You** owe a person | Never — a record, not a deduction |
 | **Debt payoff** (on a fixed expense) | A finite debt with monthly instalments | Yes, as the fixed expense it already is |
 
 **Money I Owe** is for informal one-offs — a colleague covered lunch, your manager fronted you cash. Add who, what it was for, and how much. It sits in "Still to pay back" and **doesn't touch your Remaining** while it's outstanding.
 
 When you pay some of it back, tap **$** on the row. The amount is pre-filled with everything still owed, so clearing a small debt is one tap and Save; type a smaller number for a part payment. The row then shows a progress bar and what is left.
 
-Each payment counts as spending **in the month you made it** — so paying a big debt down over several months spreads the cost across them, rather than landing the whole thing in the month you happen to finish. It shows up in Remaining, the "Paid back this month" tile and the trend chart together.
+Payments are **not** counted in your Remaining. Settling an old debt is money leaving your account, but it isn't *this month's spending* — and charging it there made a new month open thousands in the red before a single payday had landed, drowning out every figure worth reading. The **Paid back this month** tile shows what you've cleared as a record rather than a deduction, the same way money owed *to* you never enters a total either.
 
 Got it wrong? Once a debt is fully paid, **↺** removes the most recent payment and the cost comes straight back out of the month it was in.
 

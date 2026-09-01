@@ -1714,10 +1714,9 @@ function iouOutstanding() {
   return personalDebts.reduce((sum, d) => sum + debtRemaining(d), 0);
 }
 
-// What you handed over inside the month being viewed. This is the figure that
-// leaves Remaining. Each payment counts in the month it was made, so paying a
-// long-standing debt down over several months spreads the cost across them
-// rather than dumping the whole thing in the month you finished.
+// What you handed over inside the month being viewed. Feeds the "Paid back
+// this month" tile only — deliberately not subtracted from Remaining, and not
+// in the trend chart either. See the note in renderSummary for why.
 function repaidThisMonth() {
   const start = toDateStr(currentMonth);
   const end = toDateStr(monthEndExclusive(currentMonth));
@@ -1850,7 +1849,7 @@ function openPaymentForm(li, debt) {
 
   const hint = document.createElement("p");
   hint.className = "card-hint";
-  hint.textContent = `${fmt(left)} still owed to ${debt.person}. This counts as spending in the month you paid it.`;
+  hint.textContent = `${fmt(left)} still owed to ${debt.person}.`;
 
   form.appendChild(hint);
   form.appendChild(amount);
@@ -1944,7 +1943,7 @@ onSubmitLocked("iou-form", async () => {
   descEl.value = "";
   dateEl.value = toDateStr(new Date());
   renderAfterIouChange();
-  toast("Saved — counts as spending when you pay it back");
+  toast("Saved as a record of what you owe");
 });
 
 // ---------- Receipts ----------
@@ -2229,17 +2228,13 @@ function buildTrend() {
       .reduce((s, f) => s + Number(f.amount), 0);
     const monthRow = allMonthlyRows.find((r) => r.month === mKey);
     const family = monthRow ? Number(monthRow.family_maintenance) : 0;
-    // Paying someone back is real money leaving in that month, and Remaining
-    // already treats it that way. Leaving it out here would make a month where
-    // you cleared a big IOU look cheaper than it was.
-    const repaid = debtPayments
-      .filter((p) => p.date >= start && p.date < end)
-      .reduce((s, p) => s + Number(p.amount), 0);
-
+    // Debt repayments are deliberately absent: they aren't in Remaining
+    // either, and a chart that disagreed with the headline figure would be
+    // worse than one that leaves them out. See the note in renderSummary.
     months.push({
       label: m.toLocaleDateString("en-AU", { month: "short" }),
       income,
-      spending: daily + fixed + family + repaid,
+      spending: daily + fixed + family,
     });
   }
   return months;
@@ -2480,10 +2475,14 @@ function renderSummary() {
   const fixedTotal = fixedReserved();
   const dailyTotal = dailyExpenses.reduce((s, d) => s + Number(d.amount), 0);
   const netSavings = savingsThisMonth().reduce((s, t) => s + signedAmount(t), 0);
-  // Money handed back to someone this month. An IOU still outstanding costs
-  // nothing yet, so only what's actually been repaid lands here.
+  // Shown, but deliberately NOT subtracted. Settling an old debt is money
+  // leaving, but it isn't this month's *spending* — charging it here made a
+  // new month open thousands in the red before a single payday had landed,
+  // which drowned out every figure worth reading. It's a visual check on what
+  // you've cleared, nothing more. Same rule as reimbursements now: neither
+  // direction of "owed" touches a total.
   const repaid = repaidThisMonth();
-  const remaining = salary - family - fixedTotal - dailyTotal - netSavings - repaid;
+  const remaining = salary - family - fixedTotal - dailyTotal - netSavings;
 
   document.getElementById("sum-salary").textContent = fmt(salary);
   document.getElementById("sum-fixed").textContent = fmt(fixedTotal);
