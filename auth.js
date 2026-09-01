@@ -14,12 +14,11 @@ let cameFromRememberedEmail = false;
 (function setGreeting() {
   const hour = new Date().getHours();
   let text, emoji;
-  if (hour < 12) { text = "Good morning"; emoji = "i-sunrise"; }
-  else if (hour < 18) { text = "Good afternoon"; emoji = "i-sun"; }
-  else { text = "Good evening"; emoji = "i-moon"; }
+  if (hour < 12) { text = "Good morning"; emoji = "🌅"; }
+  else if (hour < 18) { text = "Good afternoon"; emoji = "☀️"; }
+  else { text = "Good evening"; emoji = "🌙"; }
   document.getElementById("greeting-text").textContent = text;
-  document.getElementById("greeting-emoji").innerHTML =
-    `<svg class="icon" aria-hidden="true"><use href="#${emoji}"/></svg>`;
+  document.getElementById("greeting-emoji").textContent = emoji;
 })();
 
 // ---------- Elements ----------
@@ -282,7 +281,7 @@ function unlockAndGoToDashboard(email) {
     mode = "login";
     cameFromRememberedEmail = true;
     document.getElementById("auth-subtitle").textContent = "Locked — enter your PIN to unlock";
-    pinHeading.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg> Locked`;
+    pinHeading.textContent = "🔒 Locked";
     pinSubheading.textContent = pendingEmail;
     showStep("pin");
     renderPinDots();
