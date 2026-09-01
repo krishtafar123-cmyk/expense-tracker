@@ -1342,3 +1342,13 @@ input, select { font-family: inherit; }
   border-radius: 8px;
 }
 .insight-dismiss:hover { color: var(--text); background: var(--input-bg); }
+
+/* Payment progress inside a Money I Owe row. Sits under the description, so
+   it needs its own top margin rather than the row's gap. */
+.debt-progress {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.debt-progress .budget-track { margin: 0; }

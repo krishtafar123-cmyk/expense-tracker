@@ -71,6 +71,11 @@ let reimbursementsUnavailable = false;
 // paying one of these back IS spending, in the month you actually paid it.
 let personalDebts = [];
 let personalDebtsUnavailable = false;
+// Part payments against those debts. What's left on a debt is always derived
+// by subtracting these from its amount — never stored, so it can't drift out
+// of step the way a running balance would.
+let debtPayments = [];
+let debtPaymentsUnavailable = false;
 // "Pay yourself first" target, held aside before anything is called spendable.
 let savePerCycle = 0;
 let settingsUnavailable = false;
@@ -369,13 +374,14 @@ async function loadMonth() {
       runQuery("category_budgets", () => sb.from("category_budgets").select("*").eq("user_id", currentUser.id)),
       runQuery("reimbursements", () => sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
       runQuery("personal_debts", () => sb.from("personal_debts").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
+      runQuery("debt_payments", () => sb.from("debt_payments").select("*").eq("user_id", currentUser.id).order("date", { ascending: false })),
       runQuery("user_settings", () => sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle()),
       // Deliberately not limited to the trend window — a payoff spans the
       // whole life of the debt, which can be longer than six months.
       runQuery("debts", () => sb.from("fixed_expenses").select("*").eq("user_id", currentUser.id).not("debt_total", "is", null)),
     ]);
 
-    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, iouRes, settingsRes, debtRes] = results;
+    const [monthlyRes, fixedRes, dailyRes, salaryRes, savingsRes, budgetRes, owedRes, iouRes, iouPayRes, settingsRes, debtRes] = results;
 
     // If anything that feeds a total failed, bail out rather than rendering a
     // partial month — a silently wrong total is worse than a visible error.
@@ -410,6 +416,13 @@ async function loadMonth() {
     personalDebtsUnavailable = !!iouRes.error;
     if (iouRes.error) console.error(iouRes.error);
     personalDebts = iouRes.data || [];
+
+    // Without this table nothing has been paid off yet, which is exactly what
+    // an unrun migration means anyway — so it degrades to "all outstanding"
+    // rather than taking the dashboard down.
+    debtPaymentsUnavailable = !!iouPayRes.error;
+    if (iouPayRes.error) console.error(iouPayRes.error);
+    debtPayments = iouPayRes.data || [];
 
     // A missing settings table just means no savings target yet.
     settingsUnavailable = !!settingsRes.error;
@@ -1674,21 +1687,43 @@ onSubmitLocked("owed-form", async () => {
 // "owed" row genuinely IS spending. Gotcha 11 says reimbursements must never
 // enter a spending total; this is the deliberate opposite, so keep the two
 // apart. The rule: an unpaid IOU costs you nothing yet — it only lands in
-// Remaining in the month you actually hand the money over, which is why
-// `repaid_on` decides the month rather than `date`.
+// Remaining when you actually hand money over, and each payment counts in the
+// month it was made, so `debt_payments.date` decides the month, never the
+// date the debt itself was incurred.
 
-function iouOutstanding() {
-  return personalDebts.filter((d) => !d.repaid).reduce((sum, d) => sum + Number(d.amount), 0);
+// What's been paid off a debt so far. Derived every time rather than stored,
+// which is what stops a running balance drifting away from the payments that
+// are supposed to explain it.
+function paidOnDebt(debtId) {
+  return debtPayments
+    .filter((p) => p.debt_id === debtId)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
-// What you paid back inside the month being viewed. This is the figure that
-// leaves Remaining.
+// Clamped at zero: overpaying by a few dollars shouldn't turn into a negative
+// balance that quietly cancels out another debt in the total.
+function debtRemaining(d) {
+  return Math.max(0, Number(d.amount) - paidOnDebt(d.id));
+}
+
+function debtCleared(d) {
+  return debtRemaining(d) <= 0;
+}
+
+function iouOutstanding() {
+  return personalDebts.reduce((sum, d) => sum + debtRemaining(d), 0);
+}
+
+// What you handed over inside the month being viewed. This is the figure that
+// leaves Remaining. Each payment counts in the month it was made, so paying a
+// long-standing debt down over several months spreads the cost across them
+// rather than dumping the whole thing in the month you finished.
 function repaidThisMonth() {
   const start = toDateStr(currentMonth);
   const end = toDateStr(monthEndExclusive(currentMonth));
-  return personalDebts
-    .filter((d) => d.repaid && d.repaid_on && d.repaid_on >= start && d.repaid_on < end)
-    .reduce((sum, d) => sum + Number(d.amount), 0);
+  return debtPayments
+    .filter((p) => p.date >= start && p.date < end)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
 function renderIouList() {
@@ -1709,34 +1744,53 @@ function renderIouList() {
 
   // Still-owed first: the whole point is seeing what you still have to pay.
   const sorted = [...personalDebts].sort((a, b) => {
-    if (a.repaid !== b.repaid) return a.repaid ? 1 : -1;
+    const ac = debtCleared(a), bc = debtCleared(b);
+    if (ac !== bc) return ac ? 1 : -1;
     return a.date < b.date ? 1 : -1;
   });
 
   for (const d of sorted) {
     const li = document.createElement("li");
-    if (d.repaid) li.classList.add("is-settled");
+    const total = Number(d.amount);
+    const paid = paidOnDebt(d.id);
+    const left = debtRemaining(d);
+    const cleared = left <= 0;
+    if (cleared) li.classList.add("is-settled");
+
     const dateLabel = new Date(d.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-    const describe = `${d.person}, ${fmt(d.amount)} for ${d.description} on ${dateLabel}`;
-    const paidLabel = d.repaid_on
-      ? " · paid back " + new Date(d.repaid_on + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" })
-      : (d.repaid ? " · paid back" : "");
+    const describe = `${d.person}, ${fmt(total)} for ${d.description} on ${dateLabel}`;
+    const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
+    const last = debtPayments
+      .filter((p) => p.debt_id === d.id)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+
+    // Progress only appears once something has been paid — an untouched debt
+    // is a plain row, and a bar sitting at 0% is just noise.
+    const progress = paid > 0
+      ? `<div class="debt-progress">
+           <div class="budget-track" aria-hidden="true"><div class="budget-fill ${cleared ? "is-done" : ""}" style="width:${pct}%"></div></div>
+           <span class="item-sub">${fmt(paid)} of ${fmt(total)} paid${cleared ? "" : " · " + fmt(left) + " left"}${last ? " · last " + new Date(last.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : ""}</span>
+         </div>`
+      : "";
 
     li.innerHTML = `
       <div class="item-main">
         <span class="item-title">${escapeHtml(d.person)}</span>
-        <span class="item-sub">${escapeHtml(d.description)} · ${dateLabel}${paidLabel}</span>
+        <span class="item-sub">${escapeHtml(d.description)} · ${dateLabel}</span>
+        ${progress}
       </div>
-      <span class="item-amount">${fmt(d.amount)}</span>
+      <span class="item-amount">${cleared ? fmt(total) : fmt(left)}</span>
       <span class="item-actions">
-        <button class="settle-btn" aria-label="${escapeAttr((d.repaid ? "Reopen, not actually paid back: " : "Mark as paid back: ") + describe)}"
-                title="${d.repaid ? "Reopen — not paid back after all" : "Mark as paid back"}">${d.repaid ? "↺" : "✓"}</button>
+        ${cleared
+          ? `<button class="settle-btn" aria-label="${escapeAttr("Undo the last payment towards " + describe)}" title="Undo the last payment">↺</button>`
+          : `<button class="settle-btn" aria-label="${escapeAttr("Record a payment towards " + describe)}" title="Record a payment">＄</button>`}
         <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
         <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
       </span>
     `;
 
-    li.querySelector(".settle-btn").addEventListener("click", () => toggleIouRepaid(d));
+    li.querySelector(".settle-btn").addEventListener("click", () =>
+      cleared ? undoLastPayment(d) : openPaymentForm(li, d));
     li.querySelector(".delete-btn").addEventListener("click", () => deleteIou(d.id));
     attachEdit(li, d, [
       { key: "date", type: "date", required: true },
@@ -1755,23 +1809,113 @@ function renderAfterIouChange() {
   renderSummary();
 }
 
-async function toggleIouRepaid(item) {
-  const next = !item.repaid;
-  // `repaid_on` is the date the money actually moved, so it decides which
-  // month wears the cost. Today, because you tick it when you pay.
-  const patch = { repaid: next, repaid_on: next ? toDateStr(new Date()) : null };
-  const { error } = await sb.from("personal_debts").update(patch).eq("id", item.id);
-  if (error) { console.error(error); toast("Failed to update"); return; }
-  item.repaid = patch.repaid;
-  item.repaid_on = patch.repaid_on;
+// Replaces the row with a small form, the same way editing does. The amount
+// is pre-filled with everything still owed, so clearing a debt in full is
+// still one tap and Save — the common case for a lunch someone covered —
+// while a part payment is just typing a smaller number over it.
+function openPaymentForm(li, debt) {
+  const left = debtRemaining(debt);
+
+  const form = document.createElement("form");
+  form.className = "edit-form";
+
+  const amount = document.createElement("input");
+  amount.type = "number";
+  amount.step = "0.01";
+  amount.min = "0.01";
+  amount.max = String(left);
+  amount.inputMode = "decimal";
+  amount.required = true;
+  amount.value = left.toFixed(2);
+  amount.setAttribute("aria-label", "Payment amount");
+
+  const date = document.createElement("input");
+  date.type = "date";
+  date.required = true;
+  date.value = toDateStr(new Date());
+  date.setAttribute("aria-label", "Date you paid it");
+
+  const actions = document.createElement("div");
+  actions.className = "edit-actions";
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.className = "btn btn-primary";
+  save.textContent = "Record payment";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "btn btn-ghost";
+  cancel.textContent = "Cancel";
+  actions.appendChild(save);
+  actions.appendChild(cancel);
+
+  const hint = document.createElement("p");
+  hint.className = "card-hint";
+  hint.textContent = `${fmt(left)} still owed to ${debt.person}. This counts as spending in the month you paid it.`;
+
+  form.appendChild(hint);
+  form.appendChild(amount);
+  form.appendChild(date);
+  form.appendChild(actions);
+
+  li.innerHTML = "";
+  li.classList.add("editing");
+  li.appendChild(form);
+  amount.focus();
+  amount.select();
+
+  cancel.addEventListener("click", renderAfterIouChange);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (save.disabled) return;
+
+    const value = parseFloat(amount.value);
+    if (!(value > 0)) { toast("Enter an amount above zero"); return; }
+    // Overpaying is almost always a typo — an extra zero — and it would
+    // otherwise quietly inflate what you've "spent" this month.
+    if (value > left + 0.005) { toast(`That's more than the ${fmt(left)} still owed`); return; }
+
+    save.disabled = true;
+    const { data, error } = await sb.from("debt_payments")
+      .insert({ user_id: currentUser.id, debt_id: debt.id, date: date.value, amount: value })
+      .select().single();
+    save.disabled = false;
+
+    if (error) {
+      console.error(error);
+      toast(debtPaymentsUnavailable ? "Run migration_debt_payments.sql first" : "Couldn't record that");
+      return;
+    }
+
+    debtPayments.unshift(data);
+    renderAfterIouChange();
+    const nowLeft = debtRemaining(debt);
+    toast(nowLeft > 0 ? `Paid ${fmt(value)} — ${fmt(nowLeft)} left` : `Paid off — nothing left owing`);
+  });
+}
+
+// The counterpart to recording one. Removes the most recent payment rather
+// than asking which, because the realistic mistake is the one you just made.
+async function undoLastPayment(debt) {
+  const mine = debtPayments
+    .filter((p) => p.debt_id === debt.id)
+    .sort((a, b) => (a.date < b.date ? 1 : (a.date > b.date ? -1 : (a.created_at < b.created_at ? 1 : -1))));
+  const last = mine[0];
+  if (!last) return;
+
+  const { error } = await sb.from("debt_payments").delete().eq("id", last.id);
+  if (error) { console.error(error); toast("Failed to undo"); return; }
+  debtPayments = debtPayments.filter((p) => p.id !== last.id);
   renderAfterIouChange();
-  toast(next ? `Paid back — counts as spending this month` : "Reopened — still owed");
+  toast(`Removed a ${fmt(last.amount)} payment — ${fmt(debtRemaining(debt))} owed again`);
 }
 
 async function deleteIou(id) {
   const { error } = await sb.from("personal_debts").delete().eq("id", id);
   if (error) { console.error(error); toast("Failed to delete"); return; }
   personalDebts = personalDebts.filter((d) => d.id !== id);
+  // The database cascade removes the payment rows; this keeps the copy in
+  // memory in step so Remaining doesn't keep subtracting them until reload.
+  debtPayments = debtPayments.filter((p) => p.debt_id !== id);
   renderAfterIouChange();
 }
 
@@ -2088,9 +2232,9 @@ function buildTrend() {
     // Paying someone back is real money leaving in that month, and Remaining
     // already treats it that way. Leaving it out here would make a month where
     // you cleared a big IOU look cheaper than it was.
-    const repaid = personalDebts
-      .filter((d) => d.repaid && d.repaid_on && d.repaid_on >= start && d.repaid_on < end)
-      .reduce((s, d) => s + Number(d.amount), 0);
+    const repaid = debtPayments
+      .filter((p) => p.date >= start && p.date < end)
+      .reduce((s, p) => s + Number(p.amount), 0);
 
     months.push({
       label: m.toLocaleDateString("en-AU", { month: "short" }),
@@ -2837,12 +2981,13 @@ document.getElementById("export-btn").addEventListener("click", async () => {
       // aren't using would be worse than one that leaves it out.
       sb.from("personal_debts").select("*").eq("user_id", currentUser.id).order("date"),
       sb.from("reimbursements").select("*").eq("user_id", currentUser.id).order("date"),
+      sb.from("debt_payments").select("*").eq("user_id", currentUser.id).order("date"),
     ]);
     const CORE_TABLES = 5;
     const failed = results.slice(0, CORE_TABLES).find((r) => r.error);
     if (failed) throw failed.error;
 
-    const [salary, monthly, fixed, daily, savings, owing, owedToMe] = results;
+    const [salary, monthly, fixed, daily, savings, owing, owedToMe, debtPays] = results;
     const rows = [["Type", "Date", "Detail", "Amount", "Note"]];
     for (const r of salary.data) rows.push(["Salary", r.date, "", r.amount, r.note]);
     for (const r of monthly.data) rows.push(["Family maintenance", r.month, "", r.family_maintenance, ""]);
@@ -2854,7 +2999,9 @@ document.getElementById("export-btn").addEventListener("click", async () => {
     for (const r of (owing.data || [])) {
       // The repaid date, not the borrowed date, is the one that carries a cost,
       // so it belongs in the export rather than a bare "paid back".
-      const status = r.repaid ? "Paid back" + (r.repaid_on ? " " + r.repaid_on : "") : "Still owed";
+      const paid = paidOnDebt(r.id);
+      const left = Math.max(0, Number(r.amount) - paid);
+      const status = left <= 0 ? "Paid off" : (paid > 0 ? fmt(paid) + " paid, " + fmt(left) + " left" : "Still owed");
       rows.push(["Money I owe", r.date, r.person, r.amount, r.description + " — " + status]);
     }
     for (const r of (owedToMe.data || [])) {
@@ -2862,6 +3009,15 @@ document.getElementById("export-btn").addEventListener("click", async () => {
       // in a spreadsheet — these are the one thing here that's owed TO you.
       const status = r.settled ? "Cleared" + (r.settled_on ? " " + r.settled_on : "") : "Not cleared yet";
       rows.push(["Owed to me", r.date, r.person || "Someone", r.amount, r.description + " — " + status]);
+    }
+    // Each payment on its own row: these are the actual spending events, and
+    // the summary line above only says where a debt ended up, not when the
+    // money left.
+    const debtsById = {};
+    for (const d of (owing.data || [])) debtsById[d.id] = d;
+    for (const p of (debtPays.data || [])) {
+      const d = debtsById[p.debt_id];
+      rows.push(["Debt repayment", p.date, d ? d.person : "", p.amount, d ? d.description : ""]);
     }
 
     const csv = rows.map((cells) => cells.map(csvCell).join(",")).join("\r\n");

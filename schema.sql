@@ -103,7 +103,8 @@ create table if not exists reimbursements (
 -- Money YOU owe other people — the mirror image of `reimbursements` above.
 -- Deliberately a separate table so the two directions can never be summed
 -- together by accident. Unlike a reimbursement, repaying one of these IS
--- spending, and counts in the month `repaid_on` falls in.
+-- spending — see `debt_payments` below, where each payment counts in the
+-- month it was made.
 create table if not exists personal_debts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -112,12 +113,25 @@ create table if not exists personal_debts (
   person text not null,
   description text not null,
   amount numeric not null default 0,
-  repaid boolean not null default false,
-  repaid_on date,
   created_at timestamptz not null default now()
 );
 
-create index if not exists idx_personal_debts_user on personal_debts(user_id, repaid, date);
+-- Part payments against the above. What's left on a debt is derived by
+-- subtracting these from its amount — never stored, so it can't drift.
+create table if not exists debt_payments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Deleting a debt takes its payments with it; an orphan would silently
+  -- distort what you've spent.
+  debt_id uuid not null references personal_debts(id) on delete cascade,
+  -- The date the money moved, which decides the month it counts in.
+  date date not null,
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_personal_debts_user on personal_debts(user_id, date);
+create index if not exists idx_debt_payments_debt on debt_payments(user_id, debt_id, date);
 create index if not exists idx_reimbursements_user on reimbursements(user_id, settled, date);
 create index if not exists idx_fixed_expenses_month on fixed_expenses(user_id, month);
 create index if not exists idx_daily_expenses_date on daily_expenses(user_id, date);
@@ -132,6 +146,7 @@ alter table savings_transactions enable row level security;
 alter table category_budgets enable row level security;
 alter table reimbursements enable row level security;
 alter table personal_debts enable row level security;
+alter table debt_payments enable row level security;
 alter table user_settings enable row level security;
 
 drop policy if exists "own monthly_data" on monthly_data;
@@ -168,6 +183,10 @@ create policy "own reimbursements" on reimbursements
 
 drop policy if exists "own personal_debts" on personal_debts;
 create policy "own personal_debts" on personal_debts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own debt_payments" on debt_payments;
+create policy "own debt_payments" on debt_payments
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------- Receipt photo storage ----------

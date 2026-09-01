@@ -72,6 +72,7 @@ If you set this up before these features existed, run these once each in Supabas
 - [migration_debt.sql](migration_debt.sql) — adds debt payoff tracking (set a "total owed" on a fixed expense).
 - [migration_receipts.sql](migration_receipts.sql) — adds receipt photos on daily expenses and money owed back to you. This one also creates the private `receipts` storage bucket and its access rules, so there's nothing to click through in the Storage dashboard.
 - [migration_personal_debts.sql](migration_personal_debts.sql) — adds the **Money I Owe** card, for money you owe another person.
+- [migration_debt_payments.sql](migration_debt_payments.sql) — lets you record **part payments** against money you owe, instead of a debt being all-or-nothing.
 - [migration_owed_person.sql](migration_owed_person.sql) — replaces the fixed "work / roommate" pair with a free-text name, so **Owed to Me** works for anyone. Also makes the monthly commitment label renameable.
 
 A fresh setup via `schema.sql` already includes all of these — no migration needed.
@@ -104,9 +105,11 @@ The app tracks three different things that all sound like "debt". They behave di
 
 **Money I Owe** is for informal one-offs — a colleague covered lunch, your manager fronted you cash. Add who, what it was for, and how much. It sits in "Still to pay back" and **doesn't touch your Remaining** while it's outstanding.
 
-When you actually hand the money over, tap **✓**. *That's* when it counts as spending, in the month you ticked it — so it lands in Remaining, the "Paid back this month" tile, and the trend chart together. The date you ticked is what decides the month, not the date you borrowed, so an IOU from June that you clear in August costs August.
+When you pay some of it back, tap **$** on the row. The amount is pre-filled with everything still owed, so clearing a small debt is one tap and Save; type a smaller number for a part payment. The row then shows a progress bar and what is left.
 
-Got it wrong? Tap **↺** to reopen it and the cost comes straight back out of that month.
+Each payment counts as spending **in the month you made it** — so paying a big debt down over several months spreads the cost across them, rather than landing the whole thing in the month you happen to finish. It shows up in Remaining, the "Paid back this month" tile and the trend chart together.
+
+Got it wrong? Once a debt is fully paid, **↺** removes the most recent payment and the cost comes straight back out of the month it was in.
 
 > **Don't use the debt payoff feature for this.** `debt_total` lives on a *fixed expense*, so a one-off IOU logged there would be charged against you **every month**, roll forward forever, and distort the trend chart and budgets.
 
