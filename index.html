@@ -18,11 +18,21 @@
 </head>
 <body>
 
+  <!-- Icon sprite, same approach as the dashboard: inline, so the login page
+       still makes no request beyond the Inter webfont. -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M12 3v6M8.5 6.5 12 3l3.5 3.5"/><path d="M2.5 18.5h19"/><path d="M6.5 15a5.5 5.5 0 0 1 11 0"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.25"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.7A8.5 8.5 0 1 1 9.3 3.5a7 7 0 0 0 11.2 11.2Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-backspace" viewBox="0 0 24 24"><path d="M9 5h10.5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9L2.5 12Z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></symbol>
+  </defs></svg>
+
   <div class="auth-screen">
     <div class="auth-card">
 
       <div class="greeting">
-        <div class="greeting-emoji" id="greeting-emoji" aria-hidden="true">👋</div>
+        <div class="greeting-emoji" id="greeting-emoji" aria-hidden="true"><svg class="icon"><use href="#i-sun"/></svg></div>
         <h1 id="greeting-text">Hello</h1>
         <p class="auth-subtitle" id="auth-subtitle">Log in to Expense Tracker</p>
       </div>
@@ -71,7 +81,7 @@
           <button class="pin-key" data-digit="9">9</button>
           <span></span>
           <button class="pin-key" data-digit="0">0</button>
-          <button class="pin-key pin-key-back" id="pin-backspace" aria-label="Backspace">⌫</button>
+          <button class="pin-key pin-key-back" id="pin-backspace" aria-label="Backspace"><svg class="icon" aria-hidden="true"><use href="#i-backspace"/></svg></button>
         </div>
 
         <p class="auth-toggle auth-toggle-split">

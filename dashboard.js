@@ -6,6 +6,17 @@ const CATEGORIES = ["Food", "Groceries", "Transport", "Shopping", "Bills", "Heal
 const currencyFmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
 function fmt(n) { return currencyFmt.format(n || 0); }
 
+// Points at a <symbol> in the sprite at the top of dashboard.html. Icons are
+// referenced rather than repeated, so a row with six buttons costs six short
+// <use> elements instead of six copies of the path data.
+//
+// Always aria-hidden: every button carrying one also has an aria-label, and a
+// screen reader announcing the shape as well as the label is just noise.
+// `name` is only ever a literal from the sprite, never user input.
+function svgIcon(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#${name}"/></svg>`;
+}
+
 // `action` adds a button to the toast (used for Undo) and holds it on screen
 // longer, since it now needs reading and acting on rather than just noticing.
 function toast(msg, action) {
@@ -825,12 +836,12 @@ function renderFamilyPaid() {
   row.hidden = family <= 0;
   if (family <= 0) {
     label.textContent = "Not paid yet";
-    btn.textContent = "✓";
+    btn.innerHTML = svgIcon("i-check");
     return;
   }
 
   row.classList.toggle("is-paid", paid);
-  btn.textContent = paid ? "↺" : "✓";
+  btn.innerHTML = svgIcon(paid ? "i-undo" : "i-check");
   const fLabel = (familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase();
   btn.setAttribute("aria-label", "Mark " + fLabel + (paid ? " as not paid" : " as paid"));
   label.textContent = paid
@@ -891,9 +902,9 @@ function renderFixedList() {
       <span class="item-amount">${fmt(f.amount)}</span>
       <span class="item-actions">
         <button class="settle-btn" aria-label="${escapeAttr((f.paid ? "Mark as not paid: " : "Mark as paid: ") + describe)}"
-                title="${f.paid ? "Mark as not paid" : "Mark as paid"}">${f.paid ? "↺" : "✓"}</button>
-        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
-        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+                title="${f.paid ? "Mark as not paid" : "Mark as paid"}">${svgIcon(f.paid ? "i-undo" : "i-check")}</button>
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">${svgIcon("i-pencil")}</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">${svgIcon("i-x")}</button>
       </span>
     `;
     li.querySelector(".settle-btn").addEventListener("click", () => toggleFixedPaid(f));
@@ -981,15 +992,15 @@ function escapeAttr(str) {
 
 // `description` names the row, so a screen reader announces "Delete Rent"
 // rather than eight identical "Delete" buttons.
-// `extra` lets a row slot in its own buttons (the receipt 📎) ahead of the
+// `extra` lets a row slot in its own buttons (the receipt paperclip) ahead of
 // edit and delete pair every row shares.
 function rowActions(description, extra) {
   const label = escapeAttr(description || "entry");
   return `
     <span class="item-actions">
       ${extra || ""}
-      <button class="edit-btn" aria-label="Edit ${label}" title="Edit">✎</button>
-      <button class="delete-btn" aria-label="Delete ${label}" title="Delete">✕</button>
+      <button class="edit-btn" aria-label="Edit ${label}" title="Edit">${svgIcon("i-pencil")}</button>
+      <button class="delete-btn" aria-label="Delete ${label}" title="Delete">${svgIcon("i-x")}</button>
     </span>
   `;
 }
@@ -1584,9 +1595,9 @@ function renderOwedList() {
       <span class="item-actions">
         ${receiptButton(r, describe)}
         <button class="settle-btn" aria-label="${escapeAttr((r.settled ? "Reopen, not actually cleared: " : "Mark as cleared: ") + describe)}"
-                title="${r.settled ? "Reopen — not cleared after all" : "Mark as cleared"}">${r.settled ? "↺" : "✓"}</button>
-        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
-        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+                title="${r.settled ? "Reopen — not cleared after all" : "Mark as cleared"}">${svgIcon(r.settled ? "i-undo" : "i-check")}</button>
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">${svgIcon("i-pencil")}</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">${svgIcon("i-x")}</button>
       </span>
     `;
 
@@ -1782,10 +1793,10 @@ function renderIouList() {
       <span class="item-amount">${cleared ? fmt(total) : fmt(left)}</span>
       <span class="item-actions">
         ${cleared
-          ? `<button class="settle-btn" aria-label="${escapeAttr("Undo the last payment towards " + describe)}" title="Undo the last payment">↺</button>`
-          : `<button class="settle-btn" aria-label="${escapeAttr("Record a payment towards " + describe)}" title="Record a payment">＄</button>`}
-        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">✎</button>
-        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">✕</button>
+          ? `<button class="settle-btn" aria-label="${escapeAttr("Undo the last payment towards " + describe)}" title="Undo the last payment">${svgIcon("i-undo")}</button>`
+          : `<button class="settle-btn" aria-label="${escapeAttr("Record a payment towards " + describe)}" title="Record a payment">${svgIcon("i-dollar")}</button>`}
+        <button class="edit-btn" aria-label="${escapeAttr("Edit " + describe)}" title="Edit">${svgIcon("i-pencil")}</button>
+        <button class="delete-btn" aria-label="${escapeAttr("Delete " + describe)}" title="Delete">${svgIcon("i-x")}</button>
       </span>
     `;
 
@@ -2029,11 +2040,11 @@ async function openReceipt(path) {
   showReceiptViewer(data.signedUrl);
 }
 
-// Markup for the 📎 button on a row that has a photo. Rendered inside
+// Markup for the paperclip button on a row that has a photo. Rendered inside
 // .item-actions alongside edit and delete.
 function receiptButton(row, description) {
   if (!row.receipt_path) return "";
-  return `<button class="receipt-view-btn" aria-label="${escapeAttr("View receipt for " + description)}" title="View receipt">📎</button>`;
+  return `<button class="receipt-view-btn" aria-label="${escapeAttr("View receipt for " + description)}" title="View receipt">${svgIcon("i-clip")}</button>`;
 }
 
 function wireReceiptButton(li, row) {
@@ -2076,7 +2087,9 @@ function wireReceiptPicker(prefix) {
 
   function refresh() {
     const file = (input.files && input.files[0]) || null;
-    btn.textContent = file ? "📎 Photo attached" : "📷 Add receipt";
+    btn.innerHTML = file
+      ? svgIcon("i-clip") + " Photo attached"
+      : svgIcon("i-camera") + " Add receipt";
     btn.classList.toggle("has-file", !!file);
     clearBtn.hidden = !file;
   }
@@ -2541,7 +2554,7 @@ function renderInsights() {
       const btn = document.createElement("button");
       btn.className = "insight-dismiss";
       btn.type = "button";
-      btn.textContent = "✕";
+      btn.innerHTML = svgIcon("i-x");
       btn.title = "Dismiss";
       btn.setAttribute("aria-label", "Dismiss: " + insight.text);
       btn.addEventListener("click", () => { insight.dismiss(); renderInsights(); });
@@ -2631,7 +2644,7 @@ function generateInsights() {
       const list = more > 0 ? shown.join(", ") + " and " + more + " more" : shown.join(", ");
       insights.push({
         tone: "warning",
-        icon: "📝",
+        icon: svgIcon("i-note"),
         text: gaps.length === 1
           ? `Nothing logged for ${list}. If you did spend that day, these figures are low.`
           : `${gaps.length} days this month have nothing logged (${list}). Anything spent on those days is missing from every figure here.`,
@@ -2644,7 +2657,7 @@ function generateInsights() {
   if (remaining < 0 && salary > 0) {
     insights.push({
       tone: "warning",
-      icon: "⚠️",
+      icon: svgIcon("i-warning"),
       text: `You're ${fmt(Math.abs(remaining))} over budget for ${monthLabel(currentMonth)} already.`,
     });
   }
@@ -2656,14 +2669,14 @@ function generateInsights() {
     if (projectedTotal > budgetForDaily) {
       insights.push({
         tone: "warning",
-        icon: "📈",
+        icon: svgIcon("i-trend-up"),
         text: `At your current pace (~${fmt(avgPerDay)}/day), you're on track to spend ${fmt(projectedTotal)} on daily expenses this month — about ${fmt(projectedTotal - budgetForDaily)} over budget.`,
       });
     } else if (daysRemaining > 0) {
       const suggestedPerDay = (budgetForDaily - dailyTotal) / daysRemaining;
       insights.push({
         tone: "positive",
-        icon: "✅",
+        icon: svgIcon("i-check-circle"),
         text: `You're on track — keep daily spending under ~${fmt(suggestedPerDay)}/day for the rest of the month to stay within budget.`,
       });
     }
@@ -2693,7 +2706,7 @@ function generateInsights() {
   if (biggestSpike) {
     insights.push({
       tone: "warning",
-      icon: "🔎",
+      icon: svgIcon("i-search"),
       text: `${biggestSpike.cat} spending is up ${Math.round(biggestSpike.pctChange)}% vs this point last month (${fmt(biggestSpike.cur)} vs ${fmt(biggestSpike.prev)}).`,
     });
   }
@@ -2716,12 +2729,12 @@ function generateInsights() {
     insights.push(b.over
       ? {
           tone: "warning",
-          icon: "🎯",
+          icon: svgIcon("i-target"),
           text: `${b.cat} is ${fmt(b.amount)} over its ${fmt(b.budget)} budget this month.`,
         }
       : {
           tone: "info",
-          icon: "🎯",
+          icon: svgIcon("i-target"),
           text: `${b.cat} is close to its budget — ${fmt(b.amount)} left of ${fmt(b.budget)}.`,
         });
   }
@@ -2734,7 +2747,7 @@ function generateInsights() {
     if (share >= 35) {
       insights.push({
         tone: "info",
-        icon: "🏷️",
+        icon: svgIcon("i-tag"),
         text: `${topCat} is your biggest expense category this month at ${fmt(topAmt)} (${Math.round(share)}% of daily spending).`,
       });
     }
@@ -2749,7 +2762,7 @@ function generateInsights() {
     if (committedShare >= 60) {
       insights.push({
         tone: "info",
-        icon: "🔒",
+        icon: svgIcon("i-lock"),
         text: `Fixed expenses and ${(familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase()} take up ${Math.round(committedShare)}% of your salary this month.`,
       });
     }
@@ -2766,7 +2779,7 @@ function generateInsights() {
     ).length;
     insights.unshift({
       tone: "info",
-      icon: "🧾",
+      icon: svgIcon("i-receipt"),
       text: `${escapeHtml(name)} still owes you ${fmt(total)} across ${count} item${count === 1 ? "" : "s"}.`,
     });
   }
@@ -2774,7 +2787,7 @@ function generateInsights() {
     const rest = owedPeople.slice(2).reduce((s, [, t]) => s + t, 0);
     insights.unshift({
       tone: "info",
-      icon: "🧾",
+      icon: svgIcon("i-receipt"),
       text: `And ${fmt(rest)} owed to you by ${owedPeople.length - 2} other${owedPeople.length - 2 === 1 ? "" : "s"}.`,
     });
   }
@@ -2793,7 +2806,7 @@ function generateInsights() {
         : 0;
       insights.unshift({
         tone: "positive",
-        icon: "🎁",
+        icon: svgIcon("i-gift"),
         text: typicalPay > 0
           ? `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — roughly ${fmt(typicalPay)} more than a normal month. A good month to save the extra.`
           : `${monthLabel(currentMonth)} has three paydays (the third lands ${third}) — a good month to save the extra.`,
@@ -2809,7 +2822,7 @@ function generateInsights() {
     if (outstanding > 0 && daysToMonthEnd <= 7) {
       insights.unshift({
         tone: "warning",
-        icon: "📌",
+        icon: svgIcon("i-pin"),
         text: `${fmt(outstanding)} of fixed costs and ${(familyLabel || DEFAULT_FAMILY_LABEL).toLowerCase()} still isn't ticked off, with ${daysToMonthEnd} day${daysToMonthEnd === 1 ? "" : "s"} left in the month.`,
       });
     }
@@ -2844,7 +2857,7 @@ function generateInsights() {
       const safePerDay = soonest.left / daysRemaining;
       insights.unshift({
         tone: "warning",
-        icon: "⏳",
+        icon: svgIcon("i-clock"),
         text: `${soonest.cat} runs out around ${runOut.toLocaleDateString("en-AU", { day: "numeric", month: "short" })} at ${fmt(soonest.perDay)}/day. ${fmt(soonest.left)} left — about ${fmt(safePerDay)}/day to reach month end.`,
       });
     }
@@ -2862,7 +2875,7 @@ function generateInsights() {
     if (todaySpent > 0 && priorAvg > 0 && todaySpent >= priorAvg * 2) {
       insights.unshift({
         tone: "warning",
-        icon: "📍",
+        icon: svgIcon("i-pin"),
         text: `${fmt(todaySpent)} spent today — about ${(todaySpent / priorAvg).toFixed(1)}× your usual ${fmt(priorAvg)} a day.`,
       });
     }
@@ -2883,13 +2896,13 @@ function generateInsights() {
       if (change >= 25) {
         insights.push({
           tone: "warning",
-          icon: "📈",
+          icon: svgIcon("i-trend-up"),
           text: `${fmt(thisWeek)} in the last 7 days, up ${Math.round(change)}% on the 7 before (${fmt(weekBefore)}).`,
         });
       } else if (change <= -25) {
         insights.push({
           tone: "positive",
-          icon: "📉",
+          icon: svgIcon("i-trend-down"),
           text: `${fmt(thisWeek)} in the last 7 days, down ${Math.round(-change)}% on the 7 before (${fmt(weekBefore)}).`,
         });
       }
@@ -2911,7 +2924,7 @@ function generateInsights() {
       if (!loggedThisCycle && daysSincePayday >= 1 && daysSincePayday <= 6) {
         insights.unshift({
           tone: "warning",
-          icon: "💰",
+          icon: svgIcon("i-wallet"),
           text: `Payday was ${start.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" })} and no pay is logged yet — the month's figures will be off until it is.`,
         });
       }

@@ -18,11 +18,17 @@
 </head>
 <body>
 
+  <!-- Icon sprite, same approach as the other pages: inline, no extra request. -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="16.5" r="4.5"/><path d="M10.7 13.3 20 4"/><path d="M17 7l2.5 2.5M14.5 9.5 17 12"/></symbol>
+    <symbol id="i-backspace" viewBox="0 0 24 24"><path d="M9 5h10.5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9L2.5 12Z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></symbol>
+  </defs></svg>
+
   <div class="auth-screen">
     <div class="auth-card">
 
       <div class="greeting">
-        <div class="greeting-emoji">🔑</div>
+        <div class="greeting-emoji" aria-hidden="true"><svg class="icon"><use href="#i-key"/></svg></div>
         <h1 id="reset-title">Set a new PIN</h1>
         <p class="auth-subtitle" id="reset-subtitle">Checking your link…</p>
       </div>
@@ -62,7 +68,7 @@
           <button class="pin-key" data-digit="9">9</button>
           <span></span>
           <button class="pin-key" data-digit="0">0</button>
-          <button class="pin-key pin-key-back" id="pin-backspace" aria-label="Backspace">⌫</button>
+          <button class="pin-key pin-key-back" id="pin-backspace" aria-label="Backspace"><svg class="icon" aria-hidden="true"><use href="#i-backspace"/></svg></button>
         </div>
       </div>
 
