@@ -477,7 +477,7 @@ input, select { font-family: inherit; }
 /* ---------- Summary ---------- */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -519,7 +519,20 @@ input, select { font-family: inherit; }
 }
 
 /* Remaining is the headline of the whole app — bigger again. */
-.summary-card-highlight .summary-value { font-size: 32px; }
+/* Deliberately NOT larger than the other tiles. At 32px a value like
+   -$6,887.50 was wider than its own card and spilled out past the coloured
+   background. Colour already makes this tile the headline; it doesn't need
+   size as well, and size was the part that broke.
+
+   The clamp is the real guard: the value shrinks with its own card, so a
+   longer figure stays inside the box on any screen. Plain 28px above is the
+   fallback where container queries aren't supported. */
+@supports (container-type: inline-size) {
+  .summary-card { container-type: inline-size; }
+  /* 12cqi measured against the longest realistic value, -$10,000.00, at every
+     card width the grid can produce. 13cqi already overflows a 168px card. */
+  .summary-value { font-size: clamp(17px, 12cqi, 28px); }
+}
 
 .negative { color: var(--red) !important; }
 .positive { color: var(--green) !important; }
