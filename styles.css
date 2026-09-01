@@ -37,7 +37,7 @@
   --input-bg: #ffffff;
   /* A whisper, not a lift. Cards carry a border instead. */
   --shadow: 0 1px 2px rgba(13,17,23,0.04);
-  --radius: 14px;
+  --radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -320,7 +320,7 @@ input, select { font-family: inherit; }
   min-height: 44px;
   border: none;
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
   transition: background 0.15s;
@@ -329,7 +329,7 @@ input, select { font-family: inherit; }
 /* The topbar is sticky and dense, and these are secondary chrome rather than
    the actions you came to tap — 36px keeps the bar from eating the screen and
    still clears the 24px WCAG AA minimum comfortably. */
-.topbar-user .btn { min-height: 36px; padding: 7px 12px; }
+.topbar-user .btn { min-height: 36px; padding: 8px 12px; }
 
 .btn-primary { background: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary-hover); }
@@ -355,7 +355,7 @@ input, select { font-family: inherit; }
   border-radius: 12px;
   width: 32px;
   height: 32px;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--text);
   line-height: 1;
 }
@@ -369,7 +369,7 @@ input, select { font-family: inherit; }
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 24px;
+  padding: 16px 24px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -405,7 +405,7 @@ input, select { font-family: inherit; }
 .loading-bar:not([hidden]) { display: block; }
 .loading-bar {
   height: 3px;
-  border-radius: 3px;
+  border-radius: 4px;
   margin-bottom: 16px;
   background: linear-gradient(90deg, transparent, var(--primary), transparent);
   background-size: 200% 100%;
@@ -485,7 +485,7 @@ input, select { font-family: inherit; }
 .summary-card {
   background: var(--card-bg);
   border-radius: 16px;
-  padding: 18px;
+  padding: 20px;
 }
 
 .summary-card-highlight {
@@ -536,7 +536,7 @@ input, select { font-family: inherit; }
   background: var(--card-bg);
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  padding: 14px 18px;
+  padding: 16px 20px;
   margin-bottom: 20px;
   font-size: 14px;
   color: var(--text-muted);
@@ -550,7 +550,7 @@ input, select { font-family: inherit; }
 
 .insights-card h2 {
   margin: 0 0 12px;
-  font-size: 17px;
+  font-size: 16px;
 }
 
 .insights-list {
@@ -563,7 +563,7 @@ input, select { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
   line-height: 1.4;
@@ -591,7 +591,7 @@ input, select { font-family: inherit; }
 .trend-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 4px;
   display: inline-block;
 }
 .trend-swatch-income { background: var(--chart-income); }
@@ -617,7 +617,7 @@ input, select { font-family: inherit; }
 }
 
 .budget-row {
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 .budget-row:last-child { border-bottom: none; }
@@ -639,7 +639,7 @@ input, select { font-family: inherit; }
 
 .budget-input {
   width: 100%;
-  padding: 7px 9px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -649,7 +649,7 @@ input, select { font-family: inherit; }
 
 .budget-track {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--input-bg);
   overflow: hidden;
   margin-top: 8px;
@@ -657,7 +657,7 @@ input, select { font-family: inherit; }
 
 .budget-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--primary);
 }
 .budget-fill.is-near { background: var(--accent); }
@@ -698,7 +698,7 @@ input, select { font-family: inherit; }
 .savings-balance {
   background: var(--input-bg);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 16px;
 }
 
@@ -730,7 +730,7 @@ input, select { font-family: inherit; }
   background: var(--primary);
   color: var(--on-primary);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 20px;
   margin-bottom: 16px;
 }
 
@@ -748,7 +748,7 @@ input, select { font-family: inherit; }
 .spend-hero.is-over .spend-hero-sub { color: rgba(255,255,255,0.9); }
 
 .spend-hero-value {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
@@ -781,7 +781,7 @@ input, select { font-family: inherit; }
 /* ---------- Money owed back to you ---------- */
 .owed-banner {
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 16px;
 }
 
@@ -812,7 +812,7 @@ input, select { font-family: inherit; }
   background: var(--input-bg);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 16px;
 }
 
@@ -833,10 +833,10 @@ input, select { font-family: inherit; }
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
   min-width: 34px;
   min-height: 34px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 .settle-btn:hover { color: var(--green); }
 
@@ -851,7 +851,7 @@ input, select { font-family: inherit; }
   display: block;
   width: 100%;
   margin-top: 6px;
-  padding: 9px 12px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -878,7 +878,7 @@ input, select { font-family: inherit; }
   align-items: center;
   gap: 8px;
   min-height: 54px;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
 }
@@ -921,7 +921,7 @@ input, select { font-family: inherit; }
   /* Large enough to be a comfortable tap target on a phone. */
   min-width: 34px;
   min-height: 34px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 .delete-btn:hover { color: var(--red); }
 .edit-btn:hover { color: var(--primary); }
@@ -940,7 +940,7 @@ input, select { font-family: inherit; }
 
 .edit-form input, .edit-form select {
   min-width: 0;
-  padding: 9px 10px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -970,7 +970,7 @@ input, select { font-family: inherit; }
 .inline-form input {
   flex: 1;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -985,7 +985,7 @@ input, select { font-family: inherit; }
   margin-bottom: 16px;
 }
 .daily-form input, .daily-form select {
-  padding: 9px 10px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -1005,7 +1005,7 @@ input, select { font-family: inherit; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 12px;
   border: 1px dashed var(--border);
   border-radius: 12px;
   background: var(--input-bg);
@@ -1054,7 +1054,7 @@ input, select { font-family: inherit; }
   flex-wrap: wrap;
   margin: 0 auto;
   max-width: 480px;
-  padding: 14px 16px;
+  padding: 16px;
   border-radius: var(--radius);
   background: var(--card-solid);
   border: 1px solid var(--border-strong);
@@ -1100,7 +1100,7 @@ input, select { font-family: inherit; }
   transform: translateX(-50%);
   background: var(--text);
   color: var(--bg);
-  padding: 10px 18px;
+  padding: 12px 20px;
   border-radius: 12px;
   font-size: 13px;
   box-shadow: var(--shadow);
@@ -1111,9 +1111,9 @@ input, select { font-family: inherit; }
 /* Sits on the toast's inverted background, so it can't use --primary. */
 .toast-action {
   margin-left: 12px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border: 1px solid currentColor;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: inherit;
   font-size: 13px;
@@ -1130,7 +1130,7 @@ input, select { font-family: inherit; }
 
 .receipt-btn {
   flex: 1;
-  padding: 9px 10px;
+  padding: 12px;
   border: 1px dashed var(--border-strong);
   border-radius: 12px;
   background: transparent;
@@ -1170,10 +1170,10 @@ input, select { font-family: inherit; }
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
   min-width: 34px;
   min-height: 34px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 .receipt-view-btn:hover { color: var(--primary); }
 
@@ -1196,7 +1196,7 @@ input, select { font-family: inherit; }
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .receipt-close {
@@ -1235,7 +1235,7 @@ input, select { font-family: inherit; }
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 10px 8px;
+  padding: 12px 8px;
   border: none;
   border-radius: 12px;
   background: transparent;
@@ -1272,11 +1272,11 @@ input, select { font-family: inherit; }
   .tab {
     flex-direction: column;
     gap: 3px;
-    font-size: 11px;
-    padding: 7px 2px;
-    border-radius: 10px;
+    font-size: 12px;
+    padding: 8px 4px;
+    border-radius: 12px;
   }
-  .tab-icon { font-size: 19px; }
+  .tab-icon { font-size: 20px; }
 
   /* Room for the fixed bar, so the last card isn't trapped underneath it. */
   .content { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
@@ -1295,7 +1295,7 @@ input, select { font-family: inherit; }
 .topbar-remaining {
   align-items: baseline;
   gap: 8px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary-soft-text);
@@ -1322,8 +1322,8 @@ input, select { font-family: inherit; }
      email is the one thing here you already know, so it gives up its space
      to the number you actually want on screen. */
   #user-email { display: none; }
-  .topbar { padding: 10px 14px; gap: 8px; }
-  .topbar-remaining { padding: 4px 10px; gap: 6px; }
+  .topbar { padding: 12px 16px; gap: 8px; }
+  .topbar-remaining { padding: 4px 12px; gap: 8px; }
 }
 
 /* Dismiss on a warning you can't act on (the logging-gap notice). Pushed to
@@ -1339,7 +1339,7 @@ input, select { font-family: inherit; }
   line-height: 1;
   min-width: 32px;
   min-height: 32px;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 .insight-dismiss:hover { color: var(--text); background: var(--input-bg); }
 

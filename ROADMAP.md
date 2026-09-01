@@ -101,6 +101,17 @@ Changed 2026-08-24, from slate & navy to "ink & indigo", after the user said it 
 
 Typography is Inter from Google Fonts, with the old system stack as the fallback, so a blocked or offline request degrades to how the app looked before rather than to a serif. This is the **one** exception to the no-third-party-requests rule below, made deliberately.
 
+### The scales — don't invent values outside them
+
+Tightened 2026-08-24. Before this there were 15 font sizes (including 17, 18 *and* 19), 7 corner radii, and paddings like `7px 9px` and `9px 10px` — numbers picked one at a time rather than chosen. Nobody can see the difference between 17px and 18px; what they can see is that nothing quite lines up.
+
+- **Type:** 12 / 13 / 14 / 16 / 20 / 24 / 28 / 32. Plus 40px for the decorative greeting emoji only. No adjacent pair is closer than 8%, so every step is a real decision.
+- **Radius:** 4px thin bars, 12px controls (`--radius`), 16px cards, 999px pills, 50% circles. Nothing else.
+- **Spacing:** multiples of 4 only.
+- **Touch targets:** buttons carry `min-height: 44px`; form inputs land at ~43px from 12px padding. The topbar's own buttons are the deliberate exception at 36px — see the note by that rule.
+
+Adding a one-off value is how the previous mess accumulated. If something genuinely needs a size that isn't here, change the scale rather than making an exception to it.
+
 **Gotcha that bit here:** `.negative` sets red text, but on `.summary-card-highlight` (the Remaining tile) that was red on the highlight colour — 1.05:1, invisible, at exactly the moment the number matters most. The tile now flips whole via `.is-negative`. Any future "highlight" surface needs the same treatment; don't just set a text colour on it.
 
 ## Keeping it generic
