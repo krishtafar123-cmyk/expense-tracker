@@ -112,6 +112,14 @@ Tightened 2026-08-24. Before this there were 15 font sizes (including 17, 18 *an
 
 Adding a one-off value is how the previous mess accumulated. If something genuinely needs a size that isn't here, change the scale rather than making an exception to it.
 
+### Icons
+
+Every icon is a `<symbol>` in an inline sprite at the top of each page's `<body>`, referenced as `<svg class="icon"><use href="#i-name"/></svg>` — or `svgIcon("i-name")` from JS. Emoji were replaced 2026-08-24: they rendered differently on every platform, varied wildly in weight so nothing aligned, and one (the hand for Money I Owe) was new enough to show as a blank box on older phones.
+
+To add one: put a stroke-only `<symbol>` on a 24×24 grid in the sprite — no `fill`, no hardcoded colour, so `.icon` can supply `currentColor` and size it in `em`. Then reference it. **Don't** reach for an icon font or a CDN: the app deliberately makes exactly one external request, the Inter webfont.
+
+Icons are always `aria-hidden`; the button around them carries the label. The dashboard sprite has 33 symbols and every one is referenced — if you remove the last use of an icon, remove the symbol too.
+
 **Gotcha that bit here:** `.negative` sets red text, but on `.summary-card-highlight` (the Remaining tile) that was red on the highlight colour — 1.05:1, invisible, at exactly the moment the number matters most. The tile now flips whole via `.is-negative`. Any future "highlight" surface needs the same treatment; don't just set a text colour on it.
 
 ## Keeping it generic
