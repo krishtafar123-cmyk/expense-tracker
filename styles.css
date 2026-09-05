@@ -29,6 +29,13 @@
   /* Both hold AA against white as body text. */
   --green: #0b6b45;
   --red: #b42318;
+  /* A red to sit BEHIND text, which is not the same job as --red. In dark
+     mode --red lightens so it stays legible as text on a dark page, and that
+     lighter red is then too pale to put white on: white on #f85149 is 3.35:1,
+     under AA. This one stays dark in both modes so white always clears 6.5:1. */
+  --danger-bg: #b42318;
+  --on-danger: #ffffff;
+  --on-danger-muted: rgba(255,255,255,0.85);
   /* The two series must differ in lightness, not just hue — green vs red at
      the same luminance is nearly indistinguishable to a colourblind reader,
      and the bars sit side by side with nothing else to tell them apart. */
@@ -498,8 +505,9 @@ input, select { font-family: inherit; }
    whole tile flips instead of just the text. Red text on the indigo tile is
    about 1:1 contrast — the figure effectively disappeared exactly when it
    mattered most. */
-.summary-card-highlight.is-negative { background: var(--red); }
-.summary-card-highlight.is-negative .summary-value { color: var(--on-primary) !important; }
+.summary-card-highlight.is-negative { background: var(--danger-bg); }
+.summary-card-highlight.is-negative .summary-value { color: var(--on-danger) !important; }
+.summary-card-highlight.is-negative .summary-label { color: var(--on-danger-muted); }
 
 /* Sentence case, no letter-spacing: the uppercase micro-label on every tile
    was one of the two things making the old theme look dated. */
@@ -748,8 +756,8 @@ input, select { font-family: inherit; }
 }
 
 .spend-hero.is-over {
-  background: var(--red);
-  color: #fff;
+  background: var(--danger-bg);
+  color: var(--on-danger);
 }
 
 .spend-hero-label {
@@ -758,7 +766,7 @@ input, select { font-family: inherit; }
 }
 
 .spend-hero.is-over .spend-hero-label,
-.spend-hero.is-over .spend-hero-sub { color: rgba(255,255,255,0.9); }
+.spend-hero.is-over .spend-hero-sub { color: var(--on-danger-muted); }
 
 .spend-hero-value {
   font-size: 32px;
