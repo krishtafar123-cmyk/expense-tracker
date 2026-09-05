@@ -131,12 +131,12 @@ If you attach a photo before running the migration, the expense still saves — 
 Supabase only sends people back to URLs you've allow-listed, so the reset link needs one setting:
 
 1. Supabase → **Authentication** → **URL Configuration**.
-2. Set **Site URL** to your live URL (e.g. `https://krishtafar123-cmyk-expense-tracker.vercel.app`).
+2. Set **Site URL** to your live URL (e.g. `https://your-project.vercel.app`).
 3. Under **Redirect URLs**, add the same URL with `/**` on the end:
-   `https://krishtafar123-cmyk-expense-tracker.vercel.app/**`
+   `https://your-project.vercel.app/**`
 4. Save.
 
-Without this, tapping the link in the reset email will bounce you to the wrong place and the new PIN can't be set. Note that Supabase's built-in email sender is rate-limited on the free tier (a handful per hour), which is fine for personal use.
+Without this, tapping the link in the reset email will bounce you to the wrong place and the new PIN cannot be set. **If you ever rename the Vercel project, redo this step** -- the old URL stops matching and password resets silently break. Note that Supabase's built-in email sender is rate-limited on the free tier (a handful per hour), which is fine for personal use.
 
 ## Locking
 

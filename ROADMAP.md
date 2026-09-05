@@ -4,7 +4,7 @@ Written 2026-08-07, after the app went live and the first round of improvements 
 
 ## Where it stands
 
-Live at https://krishtafar123-cmyk-expense-tracker.vercel.app/, deployed from `main` on every push. Everything on the original improvement list is done:
+Live on Vercel, deployed from `main` on every push. Everything on the original improvement list is done:
 
 - **Phone** — installable PWA, numeric keypad on amounts, inline editing, auto-date, low-latency PIN pad
 - **Security** — 15-minute idle auto-lock, manual Lock button, PIN reset by email
