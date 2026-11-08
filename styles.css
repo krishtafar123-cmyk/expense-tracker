@@ -1,5 +1,7 @@
-/* Ink & indigo. Near-black text on cool grey, indigo for actions, green and
-   red only where they say something about the money.
+/* Phone design system: ink on quiet grey, teal for actions, orange for the
+   one thing that needs a glance, green and red only where they say something
+   about the money. Each variable below is named after the Phone token it
+   comes from (surface, ink, brand, ...), so the two can be kept in step.
 
    Two rules keep this from drifting back to looking dated:
    1. A surface gets a hairline border OR a shadow, never both — doubling up
@@ -7,72 +9,78 @@
    2. Micro-labels stay sentence case. Uppercase + letter-spacing on every
       tile is the other big tell. */
 :root {
-  --bg: #f6f7f9;
+  /* Page = Phone surface-raised, cards = surface: grouped content on a
+     quiet ground, the way the app has always been laid out. */
+  --bg: #f4f5f7;
   --card-bg: #ffffff;
   /* Kept as a separate token so anything needing a guaranteed-opaque surface
      doesn't depend on --card-bg happening to be solid. */
   --card-solid: #ffffff;
-  --text: #0d1117;
-  --text-muted: #656d76;
-  --border: #eceef2;
-  --border-strong: #d8dce4;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --accent: #6366f1;
+  --text: #12151a;          /* ink */
+  --text-muted: #5b6370;    /* ink-muted */
+  --border: #dfe2e7;        /* hairline */
+  --border-strong: #cdd2d9;
+  --primary: #0b6e5f;       /* brand */
+  --primary-hover: #095a4e;
+  /* Phone accent: badges and the near-budget warning. Shapes, not text. */
+  --accent: #e8642a;
   /* A tinted wash of the primary, for pills and quiet highlights. Replaces
      the old habit of bordering everything to make it stand out. */
-  --primary-soft: #eef0fe;
-  --primary-soft-text: #4338ca;
+  --primary-soft: #d6f0eb;  /* brand-soft */
+  --primary-soft-text: #095a4e;
   /* Text/icons sitting on top of --primary. */
-  --on-primary: #ffffff;
-  --on-primary-muted: rgba(255,255,255,0.82);
+  --on-primary: #ffffff;    /* on-brand */
+  --on-primary-muted: rgba(255,255,255,0.85);
   /* Both hold AA against white as body text. */
-  --green: #0b6b45;
-  --red: #b42318;
+  --green: #1f7a3a;         /* success */
+  --red: #c4312b;           /* danger */
   /* A red to sit BEHIND text, which is not the same job as --red. In dark
      mode --red lightens so it stays legible as text on a dark page, and that
      lighter red is then too pale to put white on: white on #f85149 is 3.35:1,
      under AA. This one stays dark in both modes so white always clears 6.5:1. */
-  --danger-bg: #b42318;
+  --danger-bg: #c4312b;
   --on-danger: #ffffff;
   --on-danger-muted: rgba(255,255,255,0.85);
   /* The two series must differ in lightness, not just hue — green vs red at
      the same luminance is nearly indistinguishable to a colourblind reader,
      and the bars sit side by side with nothing else to tell them apart. */
-  --chart-income: #4f46e5;
-  --chart-spending: #d97706;
+  --chart-income: #0b6e5f;
+  --chart-spending: #e8642a;
   --input-bg: #ffffff;
   /* A whisper, not a lift. Cards carry a border instead. */
-  --shadow: 0 1px 2px rgba(13,17,23,0.04);
-  --radius: 12px;
+  --shadow: 0 1px 2px rgba(18,21,26,0.04);
+  --radius: 12px;           /* radius-md */
+  --radius-lg: 16px;        /* radius-lg */
+  /* Phone touch-target: the minimum for anything you came to tap. */
+  --touch-target: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1117;
-    --card-bg: #161b22;
-    --card-solid: #161b22;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --border: #232a33;
-    --border-strong: #303a45;
-    /* Indigo at full saturation is unreadable on a dark background, so it
-       lightens rather than staying the same hex as light mode. */
-    --primary: #a5b4fc;
-    --primary-hover: #c7d2fe;
-    --accent: #818cf8;
-    --primary-soft: #1e2337;
-    --primary-soft-text: #a5b4fc;
-    --on-primary: #1e1b4b;
-    --on-primary-muted: rgba(30,27,75,0.75);
-    --green: #3fb950;
-    --red: #f85149;
-    --chart-income: #818cf8;
-    /* Noticeably lighter than the income bar, not just a different hue — at
-       #e3a008 the two were only 0.11 apart in luminance, which is close to
-       indistinguishable without colour vision. */
-    --chart-spending: #fbbf24;
-    --input-bg: #0d1117;
+    --bg: #0e1116;
+    --card-bg: #181c23;
+    --card-solid: #181c23;
+    --text: #eef1f5;
+    --text-muted: #9aa3b0;
+    --border: #2a303a;
+    --border-strong: #3a424e;
+    /* Deep teal is unreadable on a dark background, so it lightens rather
+       than staying the same hex as light mode. */
+    --primary: #3fc5ae;
+    --primary-hover: #6fd6c3;
+    --accent: #ff8f5c;
+    --primary-soft: #123a34;
+    --primary-soft-text: #3fc5ae;
+    --on-primary: #04211c;
+    --on-primary-muted: rgba(4,33,28,0.78);
+    --green: #57c779;
+    --red: #ff6b62;
+    /* Income goes darker and spending lighter so the pair stays well apart
+       in lightness; the dark-mode brand teal and accent orange are almost
+       the same luminance and would only differ by hue. */
+    --chart-income: #1f9e89;
+    --chart-spending: #ffb27a;
+    --input-bg: #0e1116;
     --shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 }
@@ -102,10 +110,9 @@
 
 body {
   margin: 0;
-  /* Inter is loaded from Google Fonts in each page's <head>. The system stack
-     behind it is the real fallback, so an offline load or a blocked request
-     degrades to exactly how the app looked before rather than to Times. */
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* The phone's own font, per the Phone design system: SF Pro on iPhone,
+     Roboto on Android. Nothing to download, so it looks the same offline. */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
   background: var(--bg);
   min-height: 100vh;
@@ -317,14 +324,14 @@ input, select { font-family: inherit; }
 }
 
 /* ---------- Buttons ---------- */
-/* 44px is the phone touch-target guideline; padding alone left these at 37px.
-   inline-flex centres the label now that the height is driven by min-height
-   rather than by the padding. */
+/* --touch-target (48px) is the Phone design system's minimum; padding alone
+   left these at 37px. inline-flex centres the label now that the height is
+   driven by min-height rather than by the padding. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--touch-target);
   border: none;
   border-radius: 12px;
   padding: 12px 16px;
@@ -1264,7 +1271,7 @@ input, select { font-family: inherit; }
   font-size: 14px;
   font-weight: 600;
   /* Comfortable tap target on a phone. */
-  min-height: 44px;
+  min-height: var(--touch-target);
 }
 .tab:hover { color: var(--text); background: var(--input-bg); }
 .tab[aria-selected="true"] {
