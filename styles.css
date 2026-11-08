@@ -20,6 +20,9 @@
   --text-muted: #5b6370;    /* ink-muted */
   --border: #dfe2e7;        /* hairline */
   --border-strong: #cdd2d9;
+  /* The edge of something you type into. Hairlines are decoration; a field
+     has to be findable in sunlight, so this clears 3:1 against the field. */
+  --control-border: #8a919c;
   --primary: #0b6e5f;       /* brand */
   --primary-hover: #095a4e;
   /* Phone accent: badges and the near-budget warning. Shapes, not text. */
@@ -53,6 +56,10 @@
   --radius-lg: 16px;        /* radius-lg */
   /* Phone touch-target: the minimum for anything you came to tap. */
   --touch-target: 48px;
+  /* Icon buttons inside a list row. Three at 48px would squeeze the name to
+     almost nothing on a 375px phone; 44px is Apple's own minimum and still
+     leaves the name room. */
+  --row-target: 44px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,6 +71,7 @@
     --text-muted: #9aa3b0;
     --border: #2a303a;
     --border-strong: #3a424e;
+    --control-border: #5f6875;
     /* Deep teal is unreadable on a dark background, so it lightens rather
        than staying the same hex as light mode. */
     --primary: #3fc5ae;
@@ -367,8 +375,8 @@ input, select { font-family: inherit; }
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 12px;
-  width: 32px;
-  height: 32px;
+  width: var(--row-target);
+  height: var(--row-target);
   font-size: 20px;
   color: var(--text);
   line-height: 1;
@@ -862,8 +870,8 @@ input, select { font-family: inherit; }
   border: none;
   color: var(--text-muted);
   font-size: 16px;
-  min-width: 34px;
-  min-height: 34px;
+  min-width: var(--row-target);
+  min-height: var(--row-target);
   border-radius: 12px;
 }
 .settle-btn:hover { color: var(--green); }
@@ -933,11 +941,17 @@ input, select { font-family: inherit; }
    buttons are both fixed-width. */
 @media (max-width: 420px) {
   .item-list li { --amount-col: 76px; gap: 6px; }
+  /* The Phone 16px gutter (space-4) on page and card instead of 24px each.
+     The 44px row buttons cost the name column 26px; this gives back 32. */
+  .content { padding-left: 16px; padding-right: 16px; }
+  .card { padding: 16px; }
 }
 
 .item-actions {
   display: flex;
-  gap: 2px;
+  /* No gap: the buttons' own 44px boxes already keep the glyphs apart, and
+     every pixel here comes out of the name column. */
+  gap: 0;
   flex-shrink: 0;
 }
 
@@ -947,8 +961,8 @@ input, select { font-family: inherit; }
   color: var(--text-muted);
   font-size: 16px;
   /* Large enough to be a comfortable tap target on a phone. */
-  min-width: 34px;
-  min-height: 34px;
+  min-width: var(--row-target);
+  min-height: var(--row-target);
   border-radius: 12px;
 }
 .delete-btn:hover { color: var(--red); }
@@ -1109,7 +1123,7 @@ input, select { font-family: inherit; }
   color: var(--text);
   font-size: 13px;
   /* Comfortable as a tap target without dominating the card. */
-  min-height: 36px;
+  min-height: var(--row-target);
 }
 
 .quick-chip:hover { border-color: var(--primary); }
@@ -1164,7 +1178,7 @@ input, select { font-family: inherit; }
   background: transparent;
   color: var(--text-muted);
   font-size: 14px;
-  min-height: 38px;
+  min-height: var(--touch-target);
   text-align: center;
 }
 .receipt-btn:hover { border-color: var(--primary); color: var(--text); }
@@ -1189,8 +1203,8 @@ input, select { font-family: inherit; }
   border-radius: 12px;
   color: var(--text-muted);
   font-size: 14px;
-  min-width: 38px;
-  min-height: 38px;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
 }
 .receipt-clear:hover { color: var(--red); border-color: var(--red); }
 
@@ -1199,8 +1213,8 @@ input, select { font-family: inherit; }
   border: none;
   color: var(--text-muted);
   font-size: 16px;
-  min-width: 34px;
-  min-height: 34px;
+  min-width: var(--row-target);
+  min-height: var(--row-target);
   border-radius: 12px;
 }
 .receipt-view-btn:hover { color: var(--primary); }
@@ -1365,8 +1379,8 @@ input, select { font-family: inherit; }
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: var(--row-target);
+  min-height: var(--row-target);
   border-radius: 12px;
 }
 .insight-dismiss:hover { color: var(--text); background: var(--input-bg); }
@@ -1380,3 +1394,22 @@ input, select { font-family: inherit; }
   gap: 4px;
 }
 .debt-progress .budget-track { margin: 0; }
+
+/* ---------- Fields: last, so they win ---------- */
+/* One place for what every typed-into control shares, after the per-form
+   rules so it overrides them at equal specificity.
+   - 16px: iOS Safari zooms the whole page into any field under 16px when it
+     is focused, and leaves it zoomed. At 14px every expense logged on an
+     iPhone jumped the layout sideways.
+   - --control-border: the per-form rules drew fields with the hairline,
+     which all but vanishes outdoors. */
+.field input,
+.daily-form input,
+.daily-form select,
+.inline-form input,
+.edit-form input,
+.edit-form select,
+.budget-input {
+  font-size: 16px;
+  border-color: var(--control-border);
+}
