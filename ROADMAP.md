@@ -92,23 +92,24 @@ Roughly in order of value for how this app is actually used:
 
 ## The visual language
 
-Changed 2026-08-24, from slate & navy to "ink & indigo", after the user said it looked dated. Four rules hold it together — breaking any of them is what made the old theme read as a 2016 dashboard:
+Changed 2026-11-08 to the **Phone design system** (teal `#0b6e5f` brand, orange `#e8642a` accent, platform system font, light and dark values for every colour). Before that, from 2026-08-24, it was "ink & indigo", and before that slate & navy. The colour variables in `styles.css` are commented with the Phone token each one comes from (surface, ink, brand, …), so the two can be kept in step. Four rules hold it together — breaking any of them is what made the old theme read as a 2016 dashboard:
 
 1. **A surface gets a hairline border OR a shadow, never both.** Cards, summary tiles and the tab bar use a border and no shadow. Only genuinely floating things — the toast, the update banner — keep a shadow, and they have no border.
 2. **Micro-labels are sentence case.** No `text-transform: uppercase` with letter-spacing anywhere; it was on every tile and is the single most dating detail after the navy.
-3. **Numbers dominate.** `--radius` is 14px (cards 16px), amounts carry `font-variant-numeric: tabular-nums` so money forms a column and doesn't jitter as digits change, and large figures get negative letter-spacing.
+3. **Numbers dominate.** `--radius` is 12px (cards 16px), amounts carry `font-variant-numeric: tabular-nums` so money forms a column and doesn't jitter as digits change, and large figures get negative letter-spacing.
 4. **Every colour pair holds WCAG AA in both modes**, and the two chart series differ in *lightness*, not just hue — check any new colour before adding it. The dark spending bar had to move from `#e3a008` to `#fbbf24` for exactly this reason.
 
-Typography is Inter from Google Fonts, with the old system stack as the fallback, so a blocked or offline request degrades to how the app looked before rather than to a serif. This is the **one** exception to the no-third-party-requests rule below, made deliberately.
+Typography is the platform system font (SF Pro on iPhone, Roboto on Android). Inter from Google Fonts was dropped with the Phone change, so the app now makes no third-party requests for its look at all.
 
 ### The scales — don't invent values outside them
 
 Tightened 2026-08-24. Before this there were 15 font sizes (including 17, 18 *and* 19), 7 corner radii, and paddings like `7px 9px` and `9px 10px` — numbers picked one at a time rather than chosen. Nobody can see the difference between 17px and 18px; what they can see is that nothing quite lines up.
 
-- **Type:** 12 / 13 / 14 / 16 / 20 / 24 / 28 / 32. Plus 40px for the decorative greeting emoji only. No adjacent pair is closer than 8%, so every step is a real decision.
+- **Type:** the Phone scale as variables: `--type-footnote` 13 (hints, subtitles), `--type-callout` 15 (rows, messages, labels, buttons), `--type-headline` 17 (card titles). Around them: 12 for captions and the tab labels, 16 **only** for typed-into fields (iOS Safari zooms into anything smaller and stays zoomed) and icon glyphs, then 20 / 24 / 28 / 32 for figures. Plus 40px for the decorative greeting emoji only. 15/16/17 sit close together on purpose: each has one job, so don't reach for one in place of another.
 - **Radius:** 4px thin bars, 12px controls (`--radius`), 16px cards, 999px pills, 50% circles. Nothing else.
-- **Spacing:** multiples of 4 only.
-- **Touch targets:** buttons carry `min-height: 44px`; form inputs land at ~43px from 12px padding. The topbar's own buttons are the deliberate exception at 36px — see the note by that rule.
+- **Spacing:** multiples of 4 only. Phones (≤420px) use the Phone 16px gutter on page and cards.
+- **Touch targets:** `--touch-target` 48px for buttons and the receipt controls; `--row-target` 44px for icon buttons inside list rows, month arrows and chips, where three at 48px would crush the name column. The desktop topbar's own buttons stay the deliberate exception at 36px; on phones they live in the ⋯ menu at 48px.
+- **Edges:** `--border` is a hairline for decoration only. Anything you type into or press (fields, PIN keys, PIN dots) uses `--control-border`, which clears 3:1. Bar tracks use `--border-strong`, never the card colour.
 
 Adding a one-off value is how the previous mess accumulated. If something genuinely needs a size that isn't here, change the scale rather than making an exception to it.
 

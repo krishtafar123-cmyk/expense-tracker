@@ -147,6 +147,35 @@ setInterval(checkIdle, 30000);
 
 document.getElementById("lock-btn").addEventListener("click", lockNow);
 
+// ---------- Topbar menu (phones) ----------
+// On a phone Export / Lock / Log out sit behind one ⋯ button so the sticky
+// topbar stays two rows. On wider screens CSS hides the button and shows the
+// actions inline, so none of this has any visible effect there.
+const topbarUser = document.querySelector(".topbar-user");
+const menuBtn = document.getElementById("menu-btn");
+
+function setTopbarMenu(open) {
+  topbarUser.classList.toggle("is-open", open);
+  menuBtn.setAttribute("aria-expanded", String(open));
+}
+
+menuBtn.addEventListener("click", () => {
+  setTopbarMenu(!topbarUser.classList.contains("is-open"));
+});
+// Choosing an action, tapping anywhere else, or Escape all close it.
+document.getElementById("topbar-actions").addEventListener("click", (e) => {
+  if (e.target.closest("button")) setTopbarMenu(false);
+});
+document.addEventListener("click", (e) => {
+  if (!topbarUser.contains(e.target)) setTopbarMenu(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && topbarUser.classList.contains("is-open")) {
+    setTopbarMenu(false);
+    menuBtn.focus();
+  }
+});
+
 sb.auth.onAuthStateChange((_event, session) => {
   if (!session || !session.user) {
     window.location.href = "index.html";

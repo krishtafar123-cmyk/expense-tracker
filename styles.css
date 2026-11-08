@@ -288,7 +288,9 @@ input, select { font-family: inherit; }
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  /* An empty dot is the only sign of how many digits are left, so it needs
+     the control edge, not the hairline. */
+  border: 2px solid var(--control-border);
   background: transparent;
   transition: background 0.08s linear, border-color 0.08s linear;
 }
@@ -308,7 +310,7 @@ input, select { font-family: inherit; }
 .pin-key {
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   background: var(--input-bg);
   color: var(--text);
   font-size: 20px;
@@ -423,6 +425,11 @@ input, select { font-family: inherit; }
   color: var(--text-muted);
 }
 
+/* Inline on wide screens; the ⋯ button only exists for phones. Defined
+   before the phone media query so that query can override both. */
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.menu-btn { display: none; }
+
 .content {
   max-width: 1100px;
   margin: 0 auto;
@@ -514,6 +521,18 @@ input, select { font-family: inherit; }
   background: var(--card-bg);
   border-radius: 16px;
   padding: 20px;
+}
+
+/* Phones: two tiles a row instead of one. At minmax(168px) a 375px phone
+   fits only one, so six tiles stacked into half a screen of scrolling before
+   the pay period card. The value already shrinks with its card (the clamp
+   below bottoms out at 17px, which still holds -$10,000.00 at this width).
+   Remaining spans the row: it is the headline figure and the one tile whose
+   colour flips, so it gets the width to match. */
+@media (max-width: 420px) {
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .summary-card { padding: 16px; }
+  .summary-card-highlight { grid-column: 1 / -1; }
 }
 
 .summary-card-highlight {
@@ -689,10 +708,13 @@ input, select { font-family: inherit; }
   font-size: 13px;
 }
 
+/* The unfilled part of a bar. It used --input-bg, which is the card colour in
+   light mode, so the track vanished and a bar read as a loose stripe rather
+   than a share of something. */
 .budget-track {
   height: 6px;
   border-radius: 4px;
-  background: var(--input-bg);
+  background: var(--border-strong);
   overflow: hidden;
   margin-top: 8px;
 }
@@ -1078,7 +1100,7 @@ input, select { font-family: inherit; }
   flex: 1;
   height: 8px;
   border-radius: 4px;
-  background: var(--input-bg);
+  background: var(--border-strong);
   overflow: hidden;
 }
 .cat-row .cat-bar-fill {
@@ -1372,6 +1394,56 @@ input, select { font-family: inherit; }
   #user-email { display: none; }
   .topbar { padding: 12px 16px; gap: 8px; }
   .topbar-remaining { padding: 4px 12px; gap: 8px; }
+
+  /* Export / Lock / Log out move behind one ⋯ button. Three buttons that
+     wrapped onto their own row were the bulk of a topbar that never scrolls
+     away. What's left: brand and menu on top, month and Remaining beneath;
+     if a long figure can't share the second row, Remaining wraps onto its
+     own rather than overflowing. */
+  .topbar { justify-content: space-between; text-align: left; }
+  .topbar-brand { order: 1; }
+  .topbar-user { order: 2; position: relative; }
+  .month-nav { order: 3; gap: 4px; }
+  .month-label { min-width: 0; }
+  /* Label stacked over the figure: side by side the pill was ~160px and
+     always wrapped onto a third row next to the month controls. Stacked it
+     is ~100px and matches their 44px height. No longer a pill, so the
+     control radius instead of 999px. */
+  .topbar-remaining { order: 4; }
+  .topbar-remaining:not([hidden]) {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+    border-radius: var(--radius);
+  }
+  .topbar-remaining-value { line-height: 1.25; }
+
+  .menu-btn:not([hidden]) { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Floating, so it carries a border like every other surface here. */
+  .topbar-actions {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 20;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: 176px;
+    padding: 4px;
+    border-radius: var(--radius);
+    background: var(--card-solid);
+    border: 1px solid var(--border-strong);
+  }
+  .topbar-user.is-open .topbar-actions { display: flex; }
+  .topbar-actions .btn {
+    justify-content: flex-start;
+    min-height: var(--touch-target);
+    border: none;
+    color: var(--text);
+    font-size: var(--type-callout);
+  }
 }
 
 /* Dismiss on a warning you can't act on (the logging-gap notice). Pushed to
