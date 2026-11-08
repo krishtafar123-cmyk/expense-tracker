@@ -36,9 +36,12 @@ const pinDots = document.getElementById("pin-dots").querySelectorAll(".pin-dot")
 const pinError = document.getElementById("pin-error");
 const pinInfo = document.getElementById("pin-info");
 
+const stepBio = document.getElementById("step-bio");
+
 function showStep(step) {
   stepEmail.hidden = step !== "email";
   stepPin.hidden = step !== "pin";
+  stepBio.hidden = step !== "bio";
 }
 
 function setMode(newMode) {
@@ -252,7 +255,73 @@ async function doLogin(email, pin) {
     renderPinDots();
     return;
   }
-  unlockAndGoToDashboard(email);
+  await offerBioOrContinue(email);
+}
+
+// ---------- Face ID / fingerprint ----------
+// Helpers (bioSupported, bioEnroll, bioVerify…) live in shared.js.
+
+// Shown on the lock screen when this device has it set up for this account.
+async function showBioUnlock(email) {
+  const enrollment = bioEnrollment(email);
+  if (!enrollment || !(await bioSupported())) return;
+  const btn = document.getElementById("bio-unlock-btn");
+  btn.textContent = "Unlock with " + bioLabel();
+  btn.hidden = false;
+  btn.addEventListener("click", async () => {
+    pinError.hidden = true;
+    pinInfo.hidden = true;
+    btn.disabled = true;
+    const ok = await bioVerify(enrollment);
+    btn.disabled = false;
+    if (ok) {
+      unlockAndGoToDashboard(email);
+    } else {
+      pinInfo.textContent = capitalize(bioLabel()) + " didn't unlock it. Try again, or enter your PIN.";
+      pinInfo.hidden = false;
+    }
+  });
+}
+
+// After a correct PIN: offer setup once per account on a device that can do
+// it, then carry on. "Not now" is remembered so it doesn't ask every time;
+// the ⋯ menu on the dashboard can still turn it on later.
+async function offerBioOrContinue(email) {
+  const alreadySet = bioEnrollment(email);
+  const declined = localStorage.getItem(BIO_DECLINED_KEY) === email;
+  if (alreadySet || declined || !(await bioSupported())) {
+    unlockAndGoToDashboard(email);
+    return;
+  }
+  const label = bioLabel();
+  document.getElementById("bio-offer-heading").textContent = "Unlock with " + label + " next time?";
+  document.getElementById("bio-offer-text").textContent =
+    "When the app locks itself, you can open it with " + label + " instead of typing your PIN. " +
+    "Your PIN still works, and you still need it to log in after logging out.";
+  document.getElementById("bio-enable-btn").textContent = "Turn on " + label;
+  authSubtitle.textContent = "You're in";
+  showStep("bio");
+
+  const bioError = document.getElementById("bio-error");
+  // Held in a const: event.currentTarget is null again by the time the
+  // await returns, which left the button disabled after a cancel.
+  const enableBtn = document.getElementById("bio-enable-btn");
+  enableBtn.onclick = async () => {
+    bioError.hidden = true;
+    enableBtn.disabled = true;
+    try {
+      await bioEnroll(email);
+      unlockAndGoToDashboard(email);
+    } catch {
+      enableBtn.disabled = false;
+      bioError.textContent = capitalize(label) + " wasn't set up. Try again, or choose Not now.";
+      bioError.hidden = false;
+    }
+  };
+  document.getElementById("bio-skip-btn").onclick = () => {
+    localStorage.setItem(BIO_DECLINED_KEY, email);
+    unlockAndGoToDashboard(email);
+  };
 }
 
 // Clearing the lock and stamping activity keeps the dashboard from
@@ -285,6 +354,7 @@ function unlockAndGoToDashboard(email) {
     pinSubheading.textContent = pendingEmail;
     showStep("pin");
     renderPinDots();
+    showBioUnlock(pendingEmail);
     return;
   }
 

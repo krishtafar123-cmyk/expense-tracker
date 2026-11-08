@@ -144,6 +144,14 @@ The dashboard locks itself after **15 minutes** of inactivity, and also if you r
 
 To change the timeout, edit `LOCK_AFTER_MS` in [shared.js](shared.js).
 
+### Face ID / fingerprint unlock
+
+On a phone or computer that has it, the app offers once, after you unlock with your PIN: **Unlock with Face ID next time?** Turn it on and the lock screen shows an **Unlock with Face ID** button (fingerprint or face on Android, Touch ID on a Mac). The PIN pad stays underneath as the fallback. You can turn it on or off later from the **⋯** menu (or the top bar on a wide screen).
+
+- It unlocks the **lock screen only**. After **Log out**, you still sign in with email + PIN, because the PIN is your account password.
+- It's set up per device and per web address. On iPhone, iOS offers to save a **passkey** for the site the first time; that's how websites get Face ID, and it appears in the Passwords app. Turning Face ID off in the app stops it being used, but the passkey stays in Passwords until you delete it there.
+- It's as strong as the lock itself, not stronger: there's no server checking it, just your phone confirming it's you before the app clears its own lock. That keeps a casual snooper out, which is all the lock does today.
+
 ## Install it on your phone
 
 The app is a PWA, so it can live on your home screen and open fullscreen with no browser chrome:

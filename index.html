@@ -57,6 +57,10 @@
         <div id="pin-error" class="auth-error" role="alert" hidden></div>
         <p id="pin-info" class="auth-info" role="status" aria-live="polite" hidden></p>
 
+        <!-- Lock screen only, once set up. A button rather than an automatic
+             prompt: iOS refuses Face ID that wasn't started by a tap. -->
+        <button type="button" id="bio-unlock-btn" class="btn btn-secondary btn-block bio-unlock" hidden>Unlock with Face ID</button>
+
         <div class="pin-pad">
           <button class="pin-key" data-digit="1">1</button>
           <button class="pin-key" data-digit="2">2</button>
@@ -76,6 +80,15 @@
           <button id="pin-back-btn" class="link-btn">‹ Back</button>
           <button id="forgot-pin-btn" class="link-btn">Forgot PIN?</button>
         </p>
+      </div>
+
+      <!-- Step: offer Face ID, once, after a successful PIN login -->
+      <div id="step-bio" class="auth-step" hidden>
+        <p class="pin-heading" id="bio-offer-heading">Unlock with Face ID next time?</p>
+        <p class="auth-subtitle" id="bio-offer-text">When the app locks itself, you can open it with Face ID instead of typing your PIN. Your PIN still works, and you still need it to log in after logging out.</p>
+        <div id="bio-error" class="auth-error" role="alert" hidden></div>
+        <button type="button" id="bio-enable-btn" class="btn btn-primary btn-block">Turn on Face ID</button>
+        <button type="button" id="bio-skip-btn" class="btn btn-ghost btn-block">Not now</button>
       </div>
 
     </div>

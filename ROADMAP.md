@@ -88,7 +88,7 @@ Roughly in order of value for how this app is actually used:
 **Smaller wins**
 - Stop month navigation running arbitrarily far into the future.
 - `savings_transactions` loads all-time on every month change to compute the running balance — fine at personal scale, but a running total column or a view would scale better.
-- Biometric unlock (WebAuthn) instead of typing the PIN on a phone that supports it.
+- ~~Biometric unlock~~ — built 2026-11-08 for the lock screen (see README, "Face ID / fingerprint unlock"). It's a local WebAuthn check with no server verification, by design. Not built: Face ID for a full login after logging out, which would mean storing the PIN on the device (or WebAuthn PRF to encrypt it) — deliberately left out.
 
 ## The visual language
 

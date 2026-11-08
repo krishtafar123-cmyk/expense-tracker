@@ -182,8 +182,40 @@ sb.auth.onAuthStateChange((_event, session) => {
   }
 });
 
+// ---------- Face ID menu item ----------
+// Lives in the ⋯ menu (inline on desktop). Hidden on devices that can't do
+// it. Turning it on here is for anyone who chose "Not now" on the lock
+// screen; turning it off only forgets this device's passkey id — the passkey
+// itself stays in the phone's Passwords app until removed there.
+async function initBioMenu(email) {
+  const btn = document.getElementById("bio-btn");
+  if (!(await bioSupported())) return;
+  const label = bioLabel();
+  const render = () => {
+    btn.textContent = bioEnrollment(email) ? "Turn off " + label : "Set up " + label;
+  };
+  render();
+  btn.hidden = false;
+  btn.addEventListener("click", async () => {
+    if (bioEnrollment(email)) {
+      bioClear();
+      localStorage.setItem(BIO_DECLINED_KEY, email);
+      toast(capitalize(label) + " unlock turned off. Use your PIN to unlock.");
+    } else {
+      try {
+        await bioEnroll(email);
+        toast(capitalize(label) + " unlock is on.");
+      } catch {
+        toast(capitalize(label) + " wasn't set up.");
+      }
+    }
+    render();
+  });
+}
+
 function startApp() {
   document.getElementById("user-email").textContent = currentUser.email;
+  initBioMenu(currentUser.email);
   resetDailyDateToToday();
   document.getElementById("salary-date").value = toDateStr(new Date());
   document.getElementById("savings-date").value = toDateStr(new Date());

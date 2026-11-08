@@ -379,6 +379,13 @@ input, select { font-family: inherit; }
 
 .btn-block { width: 100%; margin-top: 6px; }
 
+/* .btn sets display, which beats the hidden attribute (ROADMAP gotcha 1).
+   Buttons toggled with `hidden` — the Face ID ones — need this to vanish. */
+.btn[hidden] { display: none; }
+
+/* Sits between the PIN dots and the keypad on the lock screen. */
+.bio-unlock { margin: 0 0 16px; }
+
 .icon-btn {
   background: transparent;
   border: 1px solid var(--border);
