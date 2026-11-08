@@ -60,6 +60,12 @@
      almost nothing on a 375px phone; 44px is Apple's own minimum and still
      leaves the name room. */
   --row-target: 44px;
+  /* Phone type scale. Headline for card titles, callout for anything you
+     read (rows, messages, labels, buttons), footnote for hints and
+     subtitles. Money figures keep their own sizes. */
+  --type-headline: 17px;
+  --type-callout: 15px;
+  --type-footnote: 13px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -213,28 +219,28 @@ input, select { font-family: inherit; }
 
 .auth-subtitle {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--type-callout);
   margin: 0 0 24px;
   text-align: center;
 }
 
 .auth-error {
   color: var(--red);
-  font-size: 13px;
+  font-size: var(--type-callout);
   margin-bottom: 12px;
   text-align: center;
 }
 
 .auth-info {
   color: var(--green);
-  font-size: 13px;
+  font-size: var(--type-callout);
   text-align: center;
   margin-top: 12px;
 }
 
 .auth-toggle {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--type-callout);
   color: var(--text-muted);
   margin-top: 16px;
 }
@@ -244,7 +250,7 @@ input, select { font-family: inherit; }
   border: none;
   color: var(--primary);
   font-weight: 600;
-  font-size: 13px;
+  font-size: inherit;
   padding: 0;
 }
 
@@ -258,7 +264,7 @@ input, select { font-family: inherit; }
 /* ---------- PIN pad ---------- */
 .pin-heading {
   text-align: center;
-  font-size: 16px;
+  font-size: var(--type-headline);
   font-weight: 600;
   margin: 0 0 4px;
 }
@@ -343,7 +349,7 @@ input, select { font-family: inherit; }
   border: none;
   border-radius: 12px;
   padding: 12px 16px;
-  font-size: 14px;
+  font-size: var(--type-callout);
   font-weight: 600;
   transition: background 0.15s;
 }
@@ -399,7 +405,7 @@ input, select { font-family: inherit; }
   z-index: 10;
 }
 
-.topbar-brand { font-weight: 700; font-size: 16px; }
+.topbar-brand { font-weight: 700; font-size: var(--type-headline); }
 
 .month-nav {
   display: flex;
@@ -476,7 +482,7 @@ input, select { font-family: inherit; }
   border-radius: var(--radius);
   padding: 12px 16px;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: var(--type-callout);
 }
 
 .load-error-msg {
@@ -574,7 +580,7 @@ input, select { font-family: inherit; }
   border-radius: var(--radius);
   padding: 16px 20px;
   margin-bottom: 20px;
-  font-size: 14px;
+  font-size: var(--type-callout);
   color: var(--text-muted);
   flex-wrap: wrap;
 }
@@ -586,7 +592,7 @@ input, select { font-family: inherit; }
 
 .insights-card h2 {
   margin: 0 0 12px;
-  font-size: 16px;
+  font-size: var(--type-headline);
 }
 
 .insights-list {
@@ -601,7 +607,7 @@ input, select { font-family: inherit; }
   gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--type-callout);
   line-height: 1.4;
 }
 
@@ -617,7 +623,7 @@ input, select { font-family: inherit; }
 .trend-legend {
   display: flex;
   gap: 16px;
-  font-size: 12px;
+  font-size: var(--type-footnote);
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -665,10 +671,10 @@ input, select { font-family: inherit; }
   gap: 10px;
 }
 
-.budget-name { font-weight: 600; font-size: 14px; }
+.budget-name { font-weight: 600; font-size: var(--type-callout); }
 
 .budget-figures {
-  font-size: 12px;
+  font-size: var(--type-footnote);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -720,12 +726,12 @@ input, select { font-family: inherit; }
 
 .card h2 {
   margin: 0 0 18px;
-  font-size: 16px;
+  font-size: var(--type-headline);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .subheading {
-  font-size: 13px;
+  font-size: var(--type-callout);
   font-weight: 600;
   color: var(--text-muted);
   margin: 22px 0 10px;
@@ -747,7 +753,7 @@ input, select { font-family: inherit; }
 }
 
 .card-hint {
-  font-size: 12px;
+  font-size: var(--type-footnote);
   line-height: 1.45;
   color: var(--text-muted);
   margin: 0 0 16px;
@@ -878,7 +884,7 @@ input, select { font-family: inherit; }
 
 .field {
   display: block;
-  font-size: 13px;
+  font-size: var(--type-callout);
   color: var(--text-muted);
   margin-bottom: 14px;
 }
@@ -916,7 +922,7 @@ input, select { font-family: inherit; }
   min-height: 54px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--type-callout);
 }
 
 /* These aren't data rows, so they opt out of the column layout. */
@@ -929,7 +935,7 @@ input, select { font-family: inherit; }
 
 .item-main { display: flex; flex-direction: column; min-width: 0; }
 .item-title { font-weight: 600; }
-.item-sub { font-size: 12px; color: var(--text-muted); }
+.item-sub { font-size: var(--type-footnote); color: var(--text-muted); }
 
 .item-amount {
   font-weight: 600;
@@ -999,7 +1005,7 @@ input, select { font-family: inherit; }
 
 .empty-state {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-callout);
   padding: 12px 0;
   text-align: center;
 }
@@ -1051,7 +1057,7 @@ input, select { font-family: inherit; }
   border: 1px dashed var(--border);
   border-radius: 12px;
   background: var(--input-bg);
-  font-size: 14px;
+  font-size: var(--type-callout);
 }
 
 .date-auto:not([hidden]) { display: flex; }
@@ -1064,7 +1070,7 @@ input, select { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--type-footnote);
   margin-bottom: 6px;
 }
 .cat-row .cat-name { width: 90px; flex-shrink: 0; color: var(--text-muted); }
@@ -1101,7 +1107,7 @@ input, select { font-family: inherit; }
   background: var(--card-solid);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow);
-  font-size: 14px;
+  font-size: var(--type-callout);
 }
 
 /* ---------- Quick add ---------- */
@@ -1121,7 +1127,7 @@ input, select { font-family: inherit; }
   border-radius: 999px;
   background: var(--input-bg);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-callout);
   /* Comfortable as a tap target without dominating the card. */
   min-height: var(--row-target);
 }
@@ -1144,7 +1150,7 @@ input, select { font-family: inherit; }
   color: var(--bg);
   padding: 12px 20px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: var(--type-callout);
   box-shadow: var(--shadow);
   z-index: 100;
   max-width: calc(100vw - 32px);
@@ -1158,7 +1164,7 @@ input, select { font-family: inherit; }
   border-radius: 12px;
   background: transparent;
   color: inherit;
-  font-size: 13px;
+  font-size: inherit;
   font-weight: 600;
 }
 
@@ -1177,7 +1183,7 @@ input, select { font-family: inherit; }
   border-radius: 12px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--type-callout);
   min-height: var(--touch-target);
   text-align: center;
 }
@@ -1282,7 +1288,7 @@ input, select { font-family: inherit; }
   border-radius: 12px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--type-callout);
   font-weight: 600;
   /* Comfortable tap target on a phone. */
   min-height: var(--touch-target);
