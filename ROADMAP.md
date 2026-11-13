@@ -28,6 +28,8 @@ Added since, on request:
 
 5. **Money I Owe** (`personal_debts`) — the user owed a colleague and a manager, and the app only tracked money owed *to* them. **`migration_personal_debts.sql` needs running.** They chose "counts only when repaid" over deducting it up front, and one card with a free-text name over fixed per-person cards. See gotcha 12 for the rule that matters.
 
+6. **Month calendar on Home** (2026-11-13) — a Mon-first grid of the viewed month in `#calendar-card`. Logged days show a teal wash and the day's total; days with nothing logged get a dashed orange edge and dot (same rule as the logging-gap insight: past days, plus today after `GAP_TODAY_COUNTS_AFTER_HOUR`). Unlike the insight it marks past months too and can't be dismissed. Tapping a day lists its expenses, and "Log an expense for this day" opens Spending with that date filled in. No migration — it reads `dailyExpenses`, and redraws from `renderSummary()`.
+
 ### What receipts look like in the code
 
 - `migration_receipts.sql` adds `receipt_path` to `daily_expenses` and `reimbursements`, and creates the private `receipts` bucket **and its policies in SQL** — deliberately, so the user doesn't have to click through the Storage dashboard.

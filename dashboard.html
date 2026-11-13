@@ -112,6 +112,30 @@
         </div>
       </section>
 
+      <section class="card calendar-card" id="calendar-card" aria-labelledby="calendar-title">
+        <div class="calendar-head">
+          <h2 id="calendar-title"><span aria-hidden="true">📅</span> <span id="calendar-month-label">This month</span></h2>
+          <span class="calendar-missed-count" id="calendar-missed-count" hidden></span>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        <div class="calendar-grid" id="calendar-grid" role="group" aria-labelledby="calendar-title"></div>
+        <div class="calendar-legend" aria-hidden="true">
+          <span class="calendar-key"><span class="calendar-swatch is-logged"></span>Logged</span>
+          <span class="calendar-key"><span class="calendar-swatch is-missed"></span>Nothing logged</span>
+          <span class="calendar-key"><span class="calendar-swatch is-today"></span>Today</span>
+        </div>
+        <div class="calendar-detail" id="calendar-detail" hidden>
+          <div class="calendar-detail-head">
+            <span class="calendar-detail-date" id="calendar-detail-date"></span>
+            <span class="calendar-detail-total" id="calendar-detail-total"></span>
+          </div>
+          <ul class="calendar-detail-list" id="calendar-detail-list"></ul>
+          <button type="button" class="btn btn-secondary calendar-log-btn" id="calendar-log-btn">Log an expense for this day</button>
+        </div>
+      </section>
+
       <section class="card cycle-card" id="cycle-card" hidden>
         <h2><span aria-hidden="true">🗓️</span> This pay period</h2>
         <p class="cycle-range" id="cycle-range"></p>

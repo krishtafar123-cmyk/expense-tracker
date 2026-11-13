@@ -2571,6 +2571,7 @@ function renderSummary() {
 
   renderTodaySummary();
   renderInsights();
+  renderCalendar();
 }
 
 // ---------- Insights ----------
@@ -3001,11 +3002,156 @@ function renderTodaySummary() {
   todayCard.hidden = false;
 }
 
+// ---------- Month calendar ----------
+// The logging-gap insight says *how many* days are empty; the calendar shows
+// *which*, so the pattern is visible at a glance (weekends? every Monday?) and
+// a missed day is one tap from being filled in. Weeks start on Monday, the
+// en-AU convention the rest of the app's dates follow.
+//
+// "Nothing logged" uses the same rule as the insight: a day counts once it has
+// passed, and today only after GAP_TODAY_COUNTS_AFTER_HOUR. Unlike the insight
+// it also marks past months — the calendar is a record, not a nag, and it
+// can't be dismissed, so there's nothing to train you to ignore.
+let calendarSelected = null; // "YYYY-MM-DD" or null
+
+function compactMoney(n) {
+  if (n >= 10000) return "$" + Math.round(n / 1000) + "k";
+  if (n >= 1000) return "$" + (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return "$" + Math.round(n);
+}
+
+function dayIsMissable(date, now) {
+  const dayStr = toDateStr(date);
+  const todayStr = toDateStr(now);
+  if (dayStr < todayStr) return true;
+  return dayStr === todayStr && now.getHours() >= GAP_TODAY_COUNTS_AFTER_HOUR;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("calendar-grid");
+  if (!grid) return;
+  const now = new Date();
+  const todayStr = toDateStr(now);
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const total = daysInMonth(currentMonth);
+
+  document.getElementById("calendar-month-label").textContent = monthLabel(currentMonth);
+
+  const byDay = new Map();
+  for (const d of dailyExpenses) {
+    const entry = byDay.get(d.date) || { total: 0, items: [] };
+    entry.total += Number(d.amount);
+    entry.items.push(d);
+    byDay.set(d.date, entry);
+  }
+
+  // A selection from another month (after navigating) means nothing here.
+  if (calendarSelected && !calendarSelected.startsWith(monthKey(currentMonth).slice(0, 7))) {
+    calendarSelected = null;
+  }
+
+  grid.innerHTML = "";
+  // getDay(): 0 = Sunday. Shift so Monday is column 0.
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  for (let i = 0; i < lead; i++) {
+    const pad = document.createElement("span");
+    pad.className = "calendar-pad";
+    pad.setAttribute("aria-hidden", "true");
+    grid.appendChild(pad);
+  }
+
+  let missed = 0;
+  for (let day = 1; day <= total; day++) {
+    const date = new Date(year, month, day);
+    const dayStr = toDateStr(date);
+    const entry = byDay.get(dayStr);
+    const isToday = dayStr === todayStr;
+    const isFuture = dayStr > todayStr;
+    const isMissed = !entry && dayIsMissable(date, now);
+    if (isMissed) missed++;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "calendar-day";
+    if (entry) btn.classList.add("is-logged");
+    if (isMissed) btn.classList.add("is-missed");
+    if (isToday) btn.classList.add("is-today");
+    if (isFuture) btn.classList.add("is-future");
+    if (dayStr === calendarSelected) btn.classList.add("is-selected");
+    btn.dataset.date = dayStr;
+    btn.disabled = isFuture;
+
+    btn.innerHTML = `<span class="calendar-day-num">${day}</span>` +
+      (entry ? `<span class="calendar-day-amt">${compactMoney(entry.total)}</span>`
+        : isMissed ? '<span class="calendar-day-dot" aria-hidden="true"></span>' : "");
+
+    const longDate = date.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
+    const status = entry ? fmt(entry.total) + " spent"
+      : isMissed ? "nothing logged"
+      : isFuture ? "upcoming" : "nothing logged yet";
+    btn.setAttribute("aria-label", `${longDate}${isToday ? " (today)" : ""}: ${status}`);
+    btn.setAttribute("aria-pressed", dayStr === calendarSelected ? "true" : "false");
+    btn.addEventListener("click", () => {
+      calendarSelected = calendarSelected === dayStr ? null : dayStr;
+      renderCalendar();
+    });
+    grid.appendChild(btn);
+  }
+
+  const countEl = document.getElementById("calendar-missed-count");
+  countEl.textContent = missed === 1 ? "1 day not logged" : missed + " days not logged";
+  countEl.hidden = missed === 0;
+
+  renderCalendarDetail(byDay);
+}
+
+function renderCalendarDetail(byDay) {
+  const panel = document.getElementById("calendar-detail");
+  if (!calendarSelected) { panel.hidden = true; return; }
+
+  const date = new Date(calendarSelected + "T00:00:00");
+  const entry = byDay.get(calendarSelected);
+  document.getElementById("calendar-detail-date").textContent =
+    date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+  document.getElementById("calendar-detail-total").textContent = entry ? fmt(entry.total) : "";
+
+  const ul = document.getElementById("calendar-detail-list");
+  ul.innerHTML = "";
+  if (!entry) {
+    ul.innerHTML = '<li class="calendar-detail-empty">Nothing logged for this day.</li>';
+  } else {
+    for (const d of entry.items) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(d.category)}${d.note ? ' <span class="calendar-detail-note">· ' + escapeHtml(d.note) + "</span>" : ""}</span>` +
+        `<span class="item-amount">${fmt(d.amount)}</span>`;
+      ul.appendChild(li);
+    }
+  }
+  panel.hidden = false;
+}
+
+// Jump to the Spending form with the selected day already filled in, so a
+// missed day is filled in where it was noticed rather than by hunting through
+// the date picker.
+document.getElementById("calendar-log-btn").addEventListener("click", () => {
+  if (!calendarSelected) return;
+  const input = document.getElementById("daily-date");
+  input.value = calendarSelected;
+  dailyDateManual = calendarSelected !== toDateStr(new Date());
+  input.hidden = true;
+  document.getElementById("daily-date-display").hidden = false;
+  setDailyDateLabel();
+  showTab("spending");
+  document.getElementById("daily-amount").focus();
+});
+
 setInterval(() => {
   const nowStr = toDateStr(new Date());
   if (nowStr === lastCheckedDate) return;
   lastCheckedDate = nowStr;
   renderTodaySummary();
+  renderCalendar();
   // Roll the entry date over too, so an app left open overnight doesn't file
   // tomorrow's expenses under yesterday. A manual override is left alone.
   if (!dailyDateManual) resetDailyDateToToday();
