@@ -1990,7 +1990,7 @@ onSubmitLocked("iou-form", async () => {
   if (!dateEl.value || isNaN(amount) || !person || !description) return;
 
   const { data, error } = await sb.from("personal_debts")
-    .insert({ user_id: currentUser.id, date: dateEl.value, person, description, amount, repaid: false })
+    .insert({ user_id: currentUser.id, date: dateEl.value, person, description, amount })
     .select().single();
   if (error) {
     console.error(error);
