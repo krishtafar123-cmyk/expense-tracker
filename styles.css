@@ -1498,3 +1498,185 @@ input, select { font-family: inherit; }
   font-size: 16px;
   border-color: var(--control-border);
 }
+
+/* ---------- Month calendar (Home) ----------
+   Three states, each told apart by more than colour so it reads for a
+   colourblind eye and in both themes:
+   - logged: teal wash + the day's total
+   - nothing logged: dashed orange edge + an orange dot (accent = shapes only)
+   - today: a solid brand ring
+   Future days are disabled and muted. */
+.calendar-card { margin-bottom: 20px; }
+
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.calendar-head h2 { margin: 0; }
+
+.calendar-missed-count:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  font-size: var(--type-footnote);
+  color: var(--text);
+}
+.calendar-missed-count::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar-weekdays {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: var(--row-target);
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  padding: 4px 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.calendar-day:hover:not(:disabled) { border-color: var(--border-strong); }
+
+.calendar-day-num {
+  font-size: var(--type-callout);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-day-amt {
+  font-size: 12px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calendar-day-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-day.is-logged {
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+}
+
+.calendar-day.is-missed {
+  border: 1px dashed var(--accent);
+}
+
+.calendar-day.is-today {
+  border: 2px solid var(--primary);
+}
+
+.calendar-day.is-future {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.calendar-day.is-selected {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+.calendar-day.is-selected .calendar-day-dot { background: var(--on-primary); }
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.calendar-key { display: inline-flex; align-items: center; gap: 8px; }
+.calendar-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+.calendar-swatch.is-logged { background: var(--primary-soft); border-color: var(--primary); }
+.calendar-swatch.is-missed { border: 1px dashed var(--accent); }
+.calendar-swatch.is-today { border: 2px solid var(--primary); }
+
+.calendar-detail:not([hidden]) {
+  display: block;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.calendar-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: var(--type-callout);
+  font-weight: 600;
+}
+.calendar-detail-total { font-variant-numeric: tabular-nums; }
+
+.calendar-detail-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.calendar-detail-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: var(--type-callout);
+  border-bottom: 1px solid var(--border);
+}
+.calendar-detail-list li:last-child { border-bottom: none; }
+.calendar-detail-note { color: var(--text-muted); }
+li.calendar-detail-empty {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--type-footnote);
+}
+
+.calendar-log-btn { width: 100%; }
+
+/* Square cells suit a phone; on a wide card they balloon to 140px tall. */
+@media (min-width: 600px) {
+  .calendar-day { aspect-ratio: auto; min-height: 56px; }
+}
