@@ -275,3 +275,38 @@ footer { max-width: 860px; margin: 0 auto; padding: 0 16px 30px; color: var(--mu
 .mic-status.err { background: var(--wrong-soft); color: var(--wrong); }
 .mic-status { overflow-wrap: anywhere; }
 .mic-action { margin-top: 8px; }
+
+/* Phrases page */
+.ph { color: var(--accent); font-weight: 600; }
+.phrase-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.phrase { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.phrase-en { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.phrase-note { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+.phrase-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.phrase-te { margin: 10px 0 0; padding: 8px 10px; border-left: 4px solid var(--accent); background: var(--surface); border-radius: 8px;
+  font-family: "Noto Sans Telugu", "Telugu Sangam MN", "Kohinoor Telugu", "Nirmala UI", "Gautami", system-ui, sans-serif; line-height: 1.7; }
+
+/* Recent checks (history) */
+.history-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.history-head h2 { margin: 0 auto 0 0; }
+.history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.history-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.history-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .8rem; margin-bottom: 4px; }
+.history-badge { font-weight: 700; }
+.history-badge.ok { color: var(--right); }
+.history-badge.fixed { color: var(--wrong); }
+.history-orig { margin: 0; color: var(--muted); text-decoration: line-through; text-decoration-color: var(--wrong); }
+.history-text { margin: 2px 0 0; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+.history-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* Three menu links + Install must fit small phones */
+@media (max-width: 430px) {
+  .install-label { display: none; }
+  .nav { gap: 2px; }
+  .nav a { padding: 6px 8px; font-size: .95rem; }
+  .topbar-inner { gap: 6px; }
+}
+@media (max-width: 340px) {
+  .nav a { padding: 6px 6px; font-size: .9rem; }
+  .brand { font-size: .95rem; }
+}

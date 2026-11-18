@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ready-made Phrases</title>
+  <meta name="description" content="Correct, natural English sentences for work and everyday life, ready to copy, listen to and check.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b5bdb">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="English">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html">Checker</a>
+        <a href="phrases.html" aria-current="page">Phrases</a>
+        <a href="learn.html">Learn</a>
+      </nav>
+      <button type="button" id="install" class="btn-small btn-primary" hidden aria-label="Install app">⬇<span class="install-label"> Install</span></button>
+    </div>
+  </header>
+
+  <main>
+    <h1>Ready-made phrases</h1>
+    <p class="lead">Correct, natural sentences for real situations. Replace the words in <span class="ph">[brackets]</span> with your own, then copy or check them.</p>
+
+    <input type="search" class="search" id="search" placeholder="Search, e.g. confirm, leave, late, order…" aria-label="Search phrases">
+    <div id="topics"></div>
+  </main>
+
+  <script src="translate.js"></script>
+  <script src="phrases-data.js"></script>
+  <script src="phrases.js"></script>
+  <script src="pwa.js"></script>
+</body>
+</html>
