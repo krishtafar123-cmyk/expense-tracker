@@ -6,15 +6,22 @@
   <title>English Helper</title>
   <meta name="description" content="Type or speak a sentence in English and get the corrected version, with a simple explanation of every mistake.">
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b5bdb">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="English">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="index.html">English Helper</a>
+      <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
       <nav class="nav" aria-label="Main">
         <a href="index.html" aria-current="page">Checker</a>
         <a href="learn.html">Learn</a>
       </nav>
+      <button type="button" id="install" class="btn-small btn-primary" hidden>⬇ Install</button>
     </div>
   </header>
 
@@ -69,5 +76,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>

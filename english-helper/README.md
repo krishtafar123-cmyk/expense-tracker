@@ -24,6 +24,17 @@ There is no server, database or login: it is just HTML, CSS and JavaScript.
 
 You'll get a link like `english-helper-xxxx.vercel.app` that works on your phone and computer.
 
+## Install it on your phone
+
+Once it's online, open the link on your phone:
+
+- **Android (Chrome):** tap **⬇ Install** at the top of the page, or open the ⋮ menu and choose **Install app** / **Add to Home screen**.
+- **iPhone (Safari):** tap the **Share** button, then **Add to Home Screen**.
+
+It then opens full-screen from its own icon. The Learn lessons work without internet, but checking needs a connection.
+
+When you change any file, bump `VERSION` in `sw.js` (for example `eh-v2` → `eh-v3`) so installed copies update.
+
 ## Try it on your computer
 
 Open `index.html` in a browser. The microphone needs the site to be served over `https` or `localhost`, so for that, run `python3 -m http.server` in this folder and open http://localhost:8000.
@@ -36,6 +47,7 @@ Open `index.html` in a browser. The microphone needs the site to be served over 
 | `learn.html`, `learn.js` | The Learn page |
 | `learn-data.js` | All lesson content. Add tenses, words or mistakes here |
 | `styles.css` | Look and feel (light and dark mode) |
+| `manifest.json`, `sw.js`, `pwa.js`, icons | Make it installable and let it work offline |
 
 ## Limits
 

@@ -6,15 +6,22 @@
   <title>Learn English</title>
   <meta name="description" content="Simple English lessons: all 12 tenses, how to ask questions, everyday vocabulary and the most common mistakes.">
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b5bdb">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="English">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="index.html">English Helper</a>
+      <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
       <nav class="nav" aria-label="Main">
         <a href="index.html">Checker</a>
         <a href="learn.html" aria-current="page">Learn</a>
       </nav>
+      <button type="button" id="install" class="btn-small btn-primary" hidden>⬇ Install</button>
     </div>
   </header>
 
@@ -35,5 +42,6 @@
 
   <script src="learn-data.js"></script>
   <script src="learn.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>

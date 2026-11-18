@@ -222,3 +222,10 @@ details.lesson .sub { color: var(--muted); font-weight: 400; font-size: .9rem; }
 .empty-state { color: var(--muted); text-align: center; padding: 24px; }
 
 footer { max-width: 860px; margin: 0 auto; padding: 0 16px 30px; color: var(--muted); font-size: .85rem; }
+
+.brand, #install { white-space: nowrap; }
+@media (max-width: 400px) {
+  .topbar-inner { gap: 6px; }
+  .brand-long { display: none; }
+  .nav a { padding: 6px 9px; }
+}
