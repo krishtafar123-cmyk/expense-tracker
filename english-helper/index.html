@@ -19,9 +19,10 @@
       <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
       <nav class="nav" aria-label="Main">
         <a href="index.html" aria-current="page">Checker</a>
+        <a href="phrases.html">Phrases</a>
         <a href="learn.html">Learn</a>
       </nav>
-      <button type="button" id="install" class="btn-small btn-primary" hidden>⬇ Install</button>
+      <button type="button" id="install" class="btn-small btn-primary" hidden aria-label="Install app">⬇<span class="install-label"> Install</span></button>
     </div>
   </header>
 
@@ -79,6 +80,15 @@
       <h2 id="mistakes-title">What changed and why</h2>
       <ul class="mistakes" id="mistakes"></ul>
       <p class="note">Tap a different suggestion to use it instead, or tap “Keep mine” if your original was right (for example, a name).</p>
+    </section>
+
+    <section class="card" id="history-card" hidden>
+      <div class="history-head">
+        <h2>Recent checks</h2>
+        <button type="button" class="btn-small btn-ghost" id="history-clear">Clear all</button>
+      </div>
+      <p class="note" style="margin-top:0">Your last 20 checks, saved only on this device.</p>
+      <ul class="history-list" id="history-list"></ul>
     </section>
   </main>
 

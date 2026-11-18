@@ -17,6 +17,10 @@ The explanation runs in your browser with the free [compromise](https://github.c
 
 Tap **అ Show in Telugu** to see your sentence and the corrected version translated into Telugu, so you can check the correction still means what you wanted to say. The choice is remembered, so Telugu keeps showing on later checks until you tap **Hide Telugu**. Translations come from the free [MyMemory](https://mymemory.translated.net) service: no key needed, about 5,000 characters a day per person.
 
+**Recent checks** at the bottom of the checker keeps your last 20 checks (original and corrected), saved only on your device, with Copy, Use again and Delete.
+
+The **Phrases** page has ready-made, correct sentences for real situations: asking questions at work, confirming details, reminders, requests, apologising, phone calls, customers and orders, and everyday life. Each one has Listen, Copy, Telugu and Edit & check buttons. Words in [brackets] are placeholders for your own details.
+
 It also has a **Learn** section: all 12 tenses, how to ask questions correctly, everyday vocabulary, and the most common mistakes. Each lesson has a "Try it" button that sends an example to the checker.
 
 ## Cost: free
@@ -61,6 +65,8 @@ Open `index.html` in a browser. The microphone needs the site to be served over 
 | `explain.js` | The “Explain it” feature: sentence type, tense, word roles and rules |
 | `vendor/compromise.min.js` | Free English grammar library used by Explain it (MIT licence) |
 | `translate.js` | Telugu translation through the free MyMemory API |
+| `phrases.html`, `phrases.js` | The Phrases page |
+| `phrases-data.js` | All ready-made sentences. Add your own here |
 | `learn-data.js` | All lesson content. Add tenses, words or mistakes here |
 | `styles.css` | Look and feel (light and dark mode) |
 | `manifest.json`, `sw.js`, `pwa.js`, icons | Make it installable and let it work offline |

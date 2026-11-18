@@ -162,6 +162,100 @@
   }
   explainBtn.addEventListener('click', explainNow);
 
+  // ----- Recent checks: the last 20 checks, kept only on this device -----
+  const HISTORY_KEY = 'eh-history';
+  const HISTORY_MAX = 20;
+  const historyCard = $('history-card');
+  const historyList = $('history-list');
+
+  function loadHistory() {
+    try {
+      const h = JSON.parse(load(HISTORY_KEY) || '[]');
+      return Array.isArray(h) ? h.filter((x) => x && typeof x.text === 'string') : [];
+    } catch (e) { return []; }
+  }
+  function saveHistory(h) { save(HISTORY_KEY, JSON.stringify(h.slice(0, HISTORY_MAX))); }
+
+  function timeAgo(ms) {
+    const mins = Math.round((Date.now() - ms) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+    const d = new Date(ms);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ', ' +
+      d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  // Save (or update) the current check at the top of the list.
+  function recordCheck() {
+    if (!state) return;
+    const entry = {
+      text: state.text,
+      fixed: currentGoodText(),
+      n: state.choice.filter((c) => c >= 0).length,
+      found: state.matches.length,
+      at: Date.now(),
+    };
+    const h = loadHistory().filter((x) => x.text !== entry.text); // no duplicates of the same sentence
+    h.unshift(entry);
+    saveHistory(h);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const h = loadHistory();
+    historyCard.hidden = !h.length;
+    historyList.innerHTML = h.map((x, i) => {
+      const changed = x.fixed !== x.text;
+      return '<li class="history-item">' +
+        '<div class="history-meta"><span>' + escapeHtml(timeAgo(x.at)) + '</span>' +
+        (changed
+          ? '<span class="history-badge fixed">Fixed ' + x.n + (x.n === 1 ? ' mistake' : ' mistakes') + '</span>'
+          : x.found
+            ? '<span class="history-badge">Kept as written</span>'
+            : '<span class="history-badge ok">✓ Correct</span>') + '</div>' +
+        (changed ? '<p class="history-orig">' + escapeHtml(x.text) + '</p>' : '') +
+        '<p class="history-text">' + escapeHtml(x.fixed) + '</p>' +
+        '<div class="history-actions">' +
+          '<button type="button" class="btn-small" data-h="copy" data-i="' + i + '">Copy</button>' +
+          '<button type="button" class="btn-small" data-h="edit" data-i="' + i + '">✎ Use again</button>' +
+          '<button type="button" class="btn-small btn-ghost" data-h="delete" data-i="' + i + '" aria-label="Delete this check">✕ Delete</button>' +
+        '</div></li>';
+    }).join('');
+  }
+
+  historyList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-h]');
+    if (!btn) return;
+    const h = loadHistory();
+    const i = +btn.dataset.i;
+    const x = h[i];
+    if (!x) return;
+    if (btn.dataset.h === 'copy') {
+      try { await navigator.clipboard.writeText(x.fixed); btn.textContent = 'Copied ✓'; } catch (err) { btn.textContent = 'Copy failed'; }
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    } else if (btn.dataset.h === 'edit') {
+      input.value = x.fixed;
+      updateCounter();
+      save('eh-draft', input.value);
+      hideResults();
+      state = null;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      input.focus();
+    } else if (btn.dataset.h === 'delete') {
+      h.splice(i, 1);
+      saveHistory(h);
+      renderHistory();
+    }
+  });
+
+  $('history-clear').addEventListener('click', () => {
+    if (!window.confirm('Delete all your recent checks from this device?')) return;
+    saveHistory([]);
+    renderHistory();
+  });
+
   function updateCounter() {
     const n = input.value.length;
     counter.textContent = n + ' / ' + MAX_CHARS;
@@ -286,11 +380,13 @@
         correctedCard.hidden = false;
         correctedEl.textContent = text;
         if (teluguOn) showTelugu();
+        recordCheck();
         return;
       }
       render();
       correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = false;
       if (teluguOn) showTelugu();
+      recordCheck();
       correctedCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       if (err.message === 'rate') {
@@ -314,6 +410,7 @@
     render();
     hideExplain();
     if (teluguOn) showTelugu();
+    recordCheck();
   });
 
   // Tapping a marked mistake jumps to its explanation.
@@ -662,7 +759,9 @@
   input.addEventListener('input', () => { updateCounter(); save('eh-draft', input.value); });
   variant.addEventListener('change', () => save('eh-variant', variant.value));
 
-  // Start-up: a sentence sent from the Learn page wins over the saved draft.
+  renderHistory();
+
+  // Start-up: a sentence sent from the Learn or Phrases page wins over the saved draft.
   const savedVariant = load('eh-variant');
   if (savedVariant && variant.querySelector('option[value="' + savedVariant + '"]')) variant.value = savedVariant;
   const fromLink = new URLSearchParams(location.search).get('text');
