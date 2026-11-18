@@ -588,7 +588,20 @@
       showSpeech();
       save('eh-draft', input.value);
       if (errored) return;
-      if (spokenText.trim()) { workedThisLoad = true; micMessage('', ''); return; }
+      if (spokenText.trim()) {
+        workedThisLoad = true;
+        if (isIOS) save(IOS_VOICE_KEY, '1'); // Safari voice input works on this device
+        micMessage('', '');
+        return;
+      }
+      if (isIOS && (iosVoiceTrial || load(IOS_VOICE_KEY) === '1')) {
+        // Safari's voice input returned nothing: use keyboard dictation from now on.
+        iosVoiceTrial = false;
+        save(IOS_VOICE_KEY, '0');
+        micMessage('err', 'Safari’s voice input didn’t return any words on this device, so 🎤 Speak will use the keyboard microphone from now on. Tap in the box, then tap the 🎤 on the keyboard and speak.' + details(),
+          { label: '⌨️ Open keyboard', onClick: startKeyboardDictation });
+        return;
+      }
       const info = details(); // describe the attempt that just failed, before switching
       if (isIOS && workedThisLoad) {
         // It worked earlier on this page, so the setting is fine: Safari's
@@ -647,7 +660,9 @@
       'aborted': '',
     };
 
-    micBtn.addEventListener('click', () => {
+    // Safari's own voice recognition. On iPhone/iPad it is only used when
+    // the person asks for it, or after it has worked on this device.
+    function startRecognition() {
       if (rec) { stopListening(session); return; }
       // Only silence our own Listen voice if it is actually talking: on iPhone,
       // touching the speech voice can stop the microphone from getting sound.
@@ -743,6 +758,28 @@
         setIdle();
         micMessage('err', 'Couldn’t start voice input. Please try again. ' + KEYBOARD_TIP);
       }
+    }
+
+    // iPhone/iPad: Safari's voice recognition can open the microphone yet
+    // detect no speech at all (seen on a real iPad, every time, in every
+    // language). Apple's keyboard dictation is reliable, so Speak opens the
+    // keyboard and explains where its microphone is.
+    const IOS_VOICE_KEY = 'eh-ios-voice'; // '1' = Safari voice input has worked here
+    function startKeyboardDictation() {
+      input.focus();
+      const end = input.value.length;
+      try { input.setSelectionRange(end, end); } catch (e) { /* ignore */ }
+      micMessage('info',
+        '⌨️ Tap the 🎤 microphone on the keyboard (next to the space bar) and speak. Your words go straight into the box, then tap Check my English. ' +
+        'Using a keyboard case? Press its 🎤 key, or press the globe/Fn key twice.',
+        { label: 'Try Safari voice input instead', onClick: () => { iosVoiceTrial = true; startRecognition(); } });
+    }
+    let iosVoiceTrial = false;
+
+    micBtn.addEventListener('click', () => {
+      if (rec) { stopListening(session); return; }
+      if (isIOS && load(IOS_VOICE_KEY) !== '1') { startKeyboardDictation(); return; }
+      startRecognition();
     });
   } else {
     // No voice input in this browser (for example Firefox): explain instead of hiding silently.
