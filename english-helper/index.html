@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>English Helper</title>
+  <meta name="description" content="Type or speak a sentence in English and get the corrected version, with a simple explanation of every mistake.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b5bdb">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="English">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html" aria-current="page">Checker</a>
+        <a href="learn.html">Learn</a>
+      </nav>
+      <button type="button" id="install" class="btn-small btn-primary" hidden>⬇ Install</button>
+    </div>
+  </header>
+
+  <main>
+    <h1>Is my English correct?</h1>
+    <p class="lead">Type or speak what you want to say. You'll get the corrected version and a simple reason for every change.</p>
+
+    <section class="card">
+      <label class="field-label" for="input">What you want to say</label>
+      <textarea id="input" placeholder="e.g. Yesterday I go to market and buyed two apple. Why you are late?" spellcheck="false"></textarea>
+      <div class="controls">
+        <button type="button" id="mic" class="mic" hidden aria-pressed="false">🎤 <span>Speak</span></button>
+        <select id="variant" aria-label="English type">
+          <option value="en-US">American English</option>
+          <option value="en-GB">British English</option>
+          <option value="en-IN">Indian English</option>
+          <option value="en-AU">Australian English</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="counter" id="counter" aria-live="polite">0 / 5000</span>
+        <button type="button" id="clear" class="btn-ghost">Clear</button>
+        <button type="button" id="check" class="btn-primary">Check my English</button>
+      </div>
+    </section>
+
+    <div id="status" class="status" role="status" hidden></div>
+
+    <section class="card" id="corrected-card" hidden>
+      <div class="result-head">
+        <h2>Corrected version</h2>
+        <button type="button" class="btn-small" id="listen">🔊 Listen</button>
+        <button type="button" class="btn-small" id="copy">Copy</button>
+        <button type="button" class="btn-small" id="use">Edit this</button>
+      </div>
+      <div class="output" id="corrected" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="original-card" hidden>
+      <h2>Your text, with the mistakes marked</h2>
+      <div class="output" id="original"></div>
+    </section>
+
+    <section class="card" id="mistakes-card" hidden>
+      <h2 id="mistakes-title">What changed and why</h2>
+      <ul class="mistakes" id="mistakes"></ul>
+      <p class="note">Tap a different suggestion to use it instead, or tap “Keep mine” if your original was right (for example, a name).</p>
+    </section>
+  </main>
+
+  <footer>
+    Checking is done by the free <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> service. It catches most common mistakes but not every one, so if a sentence still feels odd, look it up in <a href="learn.html">Learn</a>.
+  </footer>
+
+  <script src="app.js"></script>
+  <script src="pwa.js"></script>
+</body>
+</html>

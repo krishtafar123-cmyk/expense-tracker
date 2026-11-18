@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learn English</title>
+  <meta name="description" content="Simple English lessons: all 12 tenses, how to ask questions, everyday vocabulary and the most common mistakes.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b5bdb">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="English">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">English<span class="brand-long"> Helper</span></a>
+      <nav class="nav" aria-label="Main">
+        <a href="index.html">Checker</a>
+        <a href="learn.html" aria-current="page">Learn</a>
+      </nav>
+      <button type="button" id="install" class="btn-small btn-primary" hidden>⬇ Install</button>
+    </div>
+  </header>
+
+  <main>
+    <h1>Learn</h1>
+    <p class="lead">Short, simple lessons. Open any one and tap “Try it” to test an example in the checker.</p>
+
+    <div class="tabs" role="tablist" aria-label="Topics">
+      <button type="button" role="tab" data-tab="tenses" aria-controls="panel">Tenses</button>
+      <button type="button" role="tab" data-tab="questions" aria-controls="panel">Asking questions</button>
+      <button type="button" role="tab" data-tab="vocabulary" aria-controls="panel">Vocabulary</button>
+      <button type="button" role="tab" data-tab="mistakes" aria-controls="panel">Common mistakes</button>
+    </div>
+
+    <input type="search" class="search" id="search" placeholder="Search this topic…" aria-label="Search this topic">
+    <div id="panel" role="tabpanel"></div>
+  </main>
+
+  <script src="learn-data.js"></script>
+  <script src="learn.js"></script>
+  <script src="pwa.js"></script>
+</body>
+</html>
