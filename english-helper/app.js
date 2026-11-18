@@ -366,12 +366,31 @@
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
   const KEYBOARD_TIP = 'You can also tap the 🎤 on your phone’s keyboard and speak into the box.';
 
-  function micMessage(kind, text) {
+  function micMessage(kind, text, action) {
     if (!text) { micStatus.hidden = true; micStatus.textContent = ''; return; }
     micStatus.className = 'mic-status ' + kind;
     micStatus.textContent = text;
+    if (action) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-small btn-primary mic-action';
+      b.textContent = action.label;
+      b.addEventListener('click', action.onClick);
+      micStatus.appendChild(document.createElement('br'));
+      micStatus.appendChild(b);
+    }
     micStatus.hidden = false;
   }
+
+  // "Reset microphone": reload the page (the text is kept as a draft), since
+  // on iPhone the first try after a page load works.
+  function resetMicrophone() {
+    save('eh-draft', input.value);
+    try { sessionStorage.setItem('eh-mic-reset', '1'); } catch (e) { /* ignore */ }
+    location.reload();
+  }
+  let justReset = false;
+  try { justReset = sessionStorage.getItem('eh-mic-reset') === '1'; sessionStorage.removeItem('eh-mic-reset'); } catch (e) { /* ignore */ }
 
   if (SR) {
     micBtn.hidden = false;
@@ -383,6 +402,12 @@
     let gotAudio = false;
     let silenceTimer = null;
     let stopWatchdog = null;
+    // iPhone: one recogniser reused for every tap. Making a new one each time
+    // can leave Safari's voice service stuck after the first use.
+    let shared = null;
+    let sharedBusy = false;   // started, and Safari hasn't said it ended yet
+    let workedThisLoad = false;
+    if (justReset) micMessage('info', 'Microphone reset. Tap 🎤 Speak and talk.');
 
     // iPhone Safari often sends nothing in "stop after a pause" mode, so on
     // iPhone we listen continuously and stop ourselves after a short silence.
@@ -452,9 +477,14 @@
       showSpeech();
       save('eh-draft', input.value);
       if (errored) return;
-      if (spokenText.trim()) { micMessage('', ''); return; }
+      if (spokenText.trim()) { workedThisLoad = true; micMessage('', ''); return; }
       const info = details(); // describe the attempt that just failed, before switching
-      if (!gotAudio) {
+      if (isIOS && workedThisLoad) {
+        // It worked earlier on this page, so the setting is fine: Safari's
+        // voice service is stuck. A page reload clears it.
+        micMessage('err', 'Your iPhone’s voice service got stuck after the last time. Tap Reset microphone (your text is kept), then tap 🎤 Speak again.' + info,
+          { label: '↻ Reset microphone', onClick: resetMicrophone });
+      } else if (!gotAudio) {
         micMessage('err', isIOS
           ? 'No sound reached the microphone. Check Settings → Safari → Microphone is set to Ask or Allow, that you tapped Allow, and that no call or other app is using the microphone. ' + KEYBOARD_TIP
           : 'No sound reached the microphone. Check the microphone is allowed for this site and not used by another app. ' + KEYBOARD_TIP);
@@ -476,8 +506,11 @@
 
     // Ask the recogniser to stop, and finish anyway if it never says it ended
     // (this happens on iPhone).
+    let stopping = false;
     const stopListening = (id) => {
-      if (id !== session || !rec) return;
+      if (id !== session || !rec || stopping) return; // only stop once
+      stopping = true;
+      clearTimeout(silenceTimer);
       note('stop');
       try { rec.stop(); } catch (e) { /* already stopped */ }
       clearTimeout(stopWatchdog);
@@ -485,6 +518,7 @@
         if (id !== session || !rec) return;
         note('no end');
         try { rec.abort(); } catch (e) { /* ignore */ }
+        if (rec === shared) { shared = null; sharedBusy = false; } // never ended: use a fresh one next time
         finish(id);
       }, STOP_WAIT_MS);
     };
@@ -508,13 +542,14 @@
       // touching the speech voice can stop the microphone from getting sound.
       if ('speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
       const id = ++session;
+      stopping = false;
       base = input.value;
       spokenText = '';
       errored = false;
       gotAudio = false;
       events = [];
-      try {
-        rec = new SR();
+      const configure = (r) => {
+        rec = r;
         usedLang = plan.lang();
         rec.lang = usedLang;
         rec.interimResults = plan.interim; // show words as they are spoken, where it works
@@ -539,7 +574,7 @@
           }
           showSpeech();
           // Keep listening while words keep coming; stop after a pause.
-          armSilence(plan.continuous ? PAUSE_MS : SAFETY_MS, id);
+          if (!stopping) armSilence(plan.continuous ? PAUSE_MS : SAFETY_MS, id);
         };
         rec.onerror = (ev) => {
           if (id !== session) return;
@@ -559,8 +594,32 @@
           if (ev.error === 'no-speech' && spokenText.trim()) msg = '';
           if (msg) { errored = true; micMessage('err', msg); }
         };
-        rec.onend = () => { if (id === session) note('end'); finish(id); };
-        rec.start();
+        const thisRec = rec;
+        rec.onend = () => {
+          if (thisRec === shared) sharedBusy = false;
+          if (id === session) note('end');
+          finish(id);
+        };
+      };
+      try {
+        if (isIOS) {
+          if (shared && sharedBusy) { try { shared.abort(); } catch (e) { /* ignore */ } shared = null; }
+          if (!shared) shared = new SR();
+          configure(shared);
+          try {
+            shared.start();
+          } catch (e) {
+            // The old one can't be restarted: start a fresh one.
+            note('fresh');
+            shared = new SR();
+            configure(shared);
+            shared.start();
+          }
+          sharedBusy = true;
+        } else {
+          configure(new SR());
+          rec.start();
+        }
         armSilence(NOTHING_MS, id);
         micBtn.classList.add('listening');
         micBtn.setAttribute('aria-pressed', 'true');
@@ -568,6 +627,8 @@
         micMessage('info', '🎙️ Listening… speak now. It stops by itself when you pause.');
       } catch (err) {
         rec = null;
+        shared = null;
+        sharedBusy = false;
         setIdle();
         micMessage('err', 'Couldn’t start voice input. Please try again. ' + KEYBOARD_TIP);
       }
