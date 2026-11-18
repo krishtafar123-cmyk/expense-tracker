@@ -376,13 +376,24 @@
   if (SR) {
     micBtn.hidden = false;
     let rec = null;
+    let session = 0;    // each tap of Speak is a new session; old events are ignored
     let base = '';      // what was in the box before speaking
-    let heard = '';     // finished words from this session
-    let lastInterim = ''; // words still being recognised (kept if the phone never finalises them)
+    let spokenText = ''; // everything recognised so far in this session
     let errored = false;
+    let gotAudio = false;
+    let silenceTimer = null;
+    let stopWatchdog = null;
 
-    const showSpeech = (interim) => {
-      let spoken = (heard + (interim ? ' ' + interim : '')).trim();
+    // iPhone Safari often sends nothing in "stop after a pause" mode, so on
+    // iPhone we listen continuously and stop ourselves after a short silence.
+    // Android stays in pause mode, because continuous mode repeats words there.
+    const CONTINUOUS = isIOS;
+    const PAUSE_MS = 2000;        // stop this long after the last word (iPhone)
+    const NOTHING_MS = 9000;      // stop if nothing at all is heard
+    const SAFETY_MS = 15000;      // longest wait for a single piece of speech
+
+    const showSpeech = () => {
+      let spoken = spokenText.trim();
       // Speech comes back in lower case; start a new sentence with a capital.
       if (spoken && (!base.trim() || /[.!?]\s*$/.test(base))) spoken = spoken[0].toUpperCase() + spoken.slice(1);
       const sep = base && spoken && !/\s$/.test(base) ? ' ' : '';
@@ -390,20 +401,60 @@
       updateCounter();
     };
 
-    const finish = () => {
+    // Join the recognised pieces. Some phones resend everything said so far
+    // in every piece, so a piece that already contains the text replaces it.
+    const joinResults = (results) => {
+      let text = '';
+      for (let i = 0; i < results.length; i++) {
+        const t = String(results[i][0] && results[i][0].transcript || '').trim();
+        if (!t) continue;
+        if (!text || t.toLowerCase().startsWith(text.toLowerCase())) text = t;
+        else if (!text.toLowerCase().endsWith(t.toLowerCase())) text += ' ' + t;
+      }
+      return text;
+    };
+
+    const setIdle = () => {
       micBtn.classList.remove('listening');
       micBtn.setAttribute('aria-pressed', 'false');
       micBtn.querySelector('span').textContent = 'Speak';
-      // Some phones never send a final result when you tap stop: keep what was shown.
-      if (lastInterim) heard = (heard + ' ' + lastInterim).trim();
-      lastInterim = '';
-      showSpeech('');
-      save('eh-draft', input.value);
-      if (!errored) {
-        if (heard.trim()) micMessage('', '');
-        else micMessage('err', 'I didn’t catch anything. Tap Speak and start talking straight away, a little closer to the phone.');
-      }
+    };
+
+    const finish = (id) => {
+      if (id !== session || !rec) return; // already finished
+      clearTimeout(silenceTimer);
+      clearTimeout(stopWatchdog);
       rec = null;
+      setIdle();
+      showSpeech();
+      save('eh-draft', input.value);
+      if (errored) return;
+      if (spokenText.trim()) { micMessage('', ''); return; }
+      if (!gotAudio) {
+        micMessage('err', isIOS
+          ? 'No sound reached the microphone. Check Settings → Safari → Microphone is set to Ask or Allow, that you tapped Allow, and that no call or other app is using the microphone. ' + KEYBOARD_TIP
+          : 'No sound reached the microphone. Check the microphone is allowed for this site and not used by another app. ' + KEYBOARD_TIP);
+      } else {
+        micMessage('err', 'The microphone heard you, but no words came back. Try again, speaking a little slower and closer to the phone. ' + KEYBOARD_TIP);
+      }
+    };
+
+    // Ask the recogniser to stop, and finish anyway if it never says it ended
+    // (this happens on iPhone).
+    const stopListening = (id) => {
+      if (id !== session || !rec) return;
+      try { rec.stop(); } catch (e) { /* already stopped */ }
+      clearTimeout(stopWatchdog);
+      stopWatchdog = setTimeout(() => {
+        if (id !== session || !rec) return;
+        try { rec.abort(); } catch (e) { /* ignore */ }
+        finish(id);
+      }, 1500);
+    };
+
+    const armSilence = (ms, id) => {
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => stopListening(id), ms);
     };
 
     const ERRORS = {
@@ -415,31 +466,34 @@
     };
 
     micBtn.addEventListener('click', () => {
-      if (rec) { rec.stop(); return; }
-      if ('speechSynthesis' in window) speechSynthesis.cancel(); // don't listen to our own voice
+      if (rec) { stopListening(session); return; }
+      // Only silence our own Listen voice if it is actually talking: on iPhone,
+      // touching the speech voice can stop the microphone from getting sound.
+      if ('speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
+      const id = ++session;
       base = input.value;
-      heard = '';
-      lastInterim = '';
+      spokenText = '';
       errored = false;
+      gotAudio = false;
       try {
         rec = new SR();
         rec.lang = variant.value;
         rec.interimResults = true;   // show words as they are spoken
-        rec.continuous = false;      // stop after a pause (continuous repeats words on Android)
+        rec.continuous = CONTINUOUS;
         rec.maxAlternatives = 1;
+        rec.onaudiostart = () => { if (id === session) gotAudio = true; };
+        rec.onsoundstart = rec.onspeechstart = rec.onaudiostart;
         rec.onresult = (ev) => {
-          let interim = '';
-          heard = '';
-          for (let i = 0; i < ev.results.length; i++) {
-            const t = ev.results[i][0].transcript;
-            if (ev.results[i].isFinal) heard += (heard ? ' ' : '') + t.trim();
-            else interim += t;
-          }
-          lastInterim = interim.trim();
-          showSpeech(lastInterim);
+          if (id !== session) return;
+          gotAudio = true;
+          const text = joinResults(ev.results);
+          if (text) spokenText = text;
+          showSpeech();
+          // Keep listening while words keep coming; stop after a pause.
+          armSilence(CONTINUOUS ? PAUSE_MS : SAFETY_MS, id);
         };
         rec.onerror = (ev) => {
-          errored = true;
+          if (id !== session) return;
           let msg = ERRORS[ev.error];
           if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
             if (isIOS && isInstalledApp) {
@@ -451,16 +505,20 @@
             }
           }
           if (msg === undefined) msg = 'Voice input stopped unexpectedly (' + ev.error + '). Please try again. ' + KEYBOARD_TIP;
-          if (msg) micMessage('err', msg); else errored = false;
+          // "No speech" after some words were already heard isn't a problem.
+          if (ev.error === 'no-speech' && spokenText.trim()) msg = '';
+          if (msg) { errored = true; micMessage('err', msg); }
         };
-        rec.onend = finish;
+        rec.onend = () => finish(id);
         rec.start();
+        armSilence(NOTHING_MS, id);
         micBtn.classList.add('listening');
         micBtn.setAttribute('aria-pressed', 'true');
         micBtn.querySelector('span').textContent = 'Listening… tap to stop';
         micMessage('info', '🎙️ Listening… speak now. It stops by itself when you pause.');
       } catch (err) {
         rec = null;
+        setIdle();
         micMessage('err', 'Couldn’t start voice input. Please try again. ' + KEYBOARD_TIP);
       }
     });
