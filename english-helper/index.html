@@ -57,7 +57,11 @@
         <button type="button" class="btn-small" id="use">Edit this</button>
       </div>
       <div class="output" id="corrected" aria-live="polite"></div>
-      <button type="button" class="btn-primary explain-btn" id="explain-btn" aria-expanded="false" aria-controls="explain-card">💡 Explain it</button>
+      <div class="action-row">
+        <button type="button" class="btn-primary explain-btn" id="explain-btn" aria-expanded="false" aria-controls="explain-card">💡 Explain it</button>
+        <button type="button" class="telugu-btn" id="telugu-btn" aria-pressed="false" aria-controls="telugu">అ Show in Telugu</button>
+      </div>
+      <div class="telugu" id="telugu" hidden aria-live="polite"></div>
     </section>
 
     <section class="card" id="explain-card" hidden aria-live="polite">
@@ -78,10 +82,11 @@
   </main>
 
   <footer>
-    Checking is done by the free <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> service. It catches most common mistakes but not every one, so if a sentence still feels odd, look it up in <a href="learn.html">Learn</a>.
+    Checking is done by the free <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> service, and Telugu translations by the free <a href="https://mymemory.translated.net" target="_blank" rel="noopener">MyMemory</a> service. It catches most common mistakes but not every one, so if a sentence still feels odd, look it up in <a href="learn.html">Learn</a>.
   </footer>
 
   <script src="explain.js"></script>
+  <script src="translate.js"></script>
   <script src="app.js"></script>
   <script src="pwa.js"></script>
 </body>
