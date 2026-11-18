@@ -56,7 +56,49 @@
   function hideResults() {
     statusEl.hidden = true;
     correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = true;
+    hideExplain();
   }
+
+  // ----- "Explain it": how the (correct or corrected) sentence works -----
+  const explainBtn = $('explain-btn');
+  const explainCard = $('explain-card');
+  const explainOut = $('explain-out');
+
+  function hideExplain() {
+    explainCard.hidden = true;
+    explainOut.innerHTML = '';
+    explainBtn.setAttribute('aria-expanded', 'false');
+    explainBtn.textContent = '💡 Explain it';
+  }
+
+  function currentGoodText() {
+    if (!state) return correctedEl.textContent;
+    return state.matches.length ? correctedPlain() : state.text;
+  }
+
+  async function explainNow() {
+    if (!explainCard.hidden) { hideExplain(); return; }
+    const text = currentGoodText();
+    if (!text.trim()) return;
+    explainBtn.disabled = true;
+    explainBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Explaining…';
+    try {
+      explainOut.innerHTML = await window.EnglishExplain.explainHtml(text);
+      $('explain-title').textContent = state && state.matches.length
+        ? 'How the corrected sentence works'
+        : 'Why your sentence is correct';
+      explainCard.hidden = false;
+      explainBtn.setAttribute('aria-expanded', 'true');
+      explainBtn.textContent = 'Hide explanation';
+      explainCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      explainBtn.textContent = '💡 Explain it';
+      showStatus('err', 'Couldn’t load the explanation. Check your internet connection and try again.');
+    } finally {
+      explainBtn.disabled = false;
+    }
+  }
+  explainBtn.addEventListener('click', explainNow);
 
   function updateCounter() {
     const n = input.value.length;
@@ -173,7 +215,7 @@
       };
 
       if (!matches.length) {
-        showStatus('ok', '✓ Looks good! No mistakes found.');
+        showStatus('ok', '✓ Looks good! No mistakes found. Tap “Explain it” to see why it’s correct.');
         correctedCard.hidden = false;
         correctedEl.textContent = text;
         return;
@@ -201,6 +243,7 @@
     if (!btn || !state) return;
     state.choice[+btn.dataset.i] = +btn.dataset.j;
     render();
+    hideExplain();
   });
 
   // Tapping a marked mistake jumps to its explanation.

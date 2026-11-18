@@ -12,12 +12,15 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // "Future Simple (will) and “going to”" → "future-simple-will-and-going-to".
+  // The Explain feature links to lessons by these ids.
+  const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const tryLink = (sentence) =>
     '<a class="btn btn-small try" href="index.html?text=' + encodeURIComponent(sentence) + '">Try “' + esc(sentence) + '” in the checker</a>';
 
   function lesson(t) {
     const form = Object.entries(t.form).map(([k, v]) => '<b>' + esc(k) + '</b><span>' + esc(v) + '</span>').join('');
-    return '<details class="lesson"><summary>' + esc(t.name) + ' <span class="sub">' + esc(t.sub) + '</span></summary>' +
+    return '<details class="lesson" id="' + slug(t.name) + '"><summary>' + esc(t.name) + ' <span class="sub">' + esc(t.sub) + '</span></summary>' +
       '<div class="lesson-body">' +
       '<p>' + esc(t.use) + '</p>' +
       '<h3>How to make it</h3><div class="formula">' + form + '</div>' +
@@ -90,5 +93,13 @@
   });
   search.addEventListener('input', render);
 
-  select(location.hash.slice(1));
+  // A link like learn.html#tenses:past-simple opens that tab and lesson.
+  const [tab, lessonId] = decodeURIComponent(location.hash.slice(1)).split(':');
+  select(tab);
+  const target = lessonId && document.getElementById(lessonId);
+  if (target && target.tagName === 'DETAILS') {
+    target.open = true;
+    history.replaceState(null, '', '#' + tab + ':' + lessonId);
+    requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  }
 })();

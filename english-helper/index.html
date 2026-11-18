@@ -57,6 +57,12 @@
         <button type="button" class="btn-small" id="use">Edit this</button>
       </div>
       <div class="output" id="corrected" aria-live="polite"></div>
+      <button type="button" class="btn-primary explain-btn" id="explain-btn" aria-expanded="false" aria-controls="explain-card">💡 Explain it</button>
+    </section>
+
+    <section class="card" id="explain-card" hidden aria-live="polite">
+      <h2 id="explain-title">How this sentence works</h2>
+      <div id="explain-out"></div>
     </section>
 
     <section class="card" id="original-card" hidden>
@@ -75,6 +81,7 @@
     Checking is done by the free <a href="https://languagetool.org" target="_blank" rel="noopener">LanguageTool</a> service. It catches most common mistakes but not every one, so if a sentence still feels odd, look it up in <a href="learn.html">Learn</a>.
   </footer>
 
+  <script src="explain.js"></script>
   <script src="app.js"></script>
   <script src="pwa.js"></script>
 </body>
