@@ -510,6 +510,7 @@
     let sharedBusy = false;   // started, and Safari hasn't said it ended yet
     let workedThisLoad = false;
     if (justReset) micMessage('info', 'Microphone reset. Tap 🎤 Speak and talk.');
+    window.addEventListener('eh-variant-change', () => { planIndex = 0; plan = PLANS[0]; micMessage('', ''); });
 
     // iPhone Safari often sends nothing in "stop after a pause" mode, so on
     // iPhone we listen continuously and stop ourselves after a short silence.
@@ -519,22 +520,29 @@
     const SAFETY_MS = 15000;      // longest wait for a single piece of speech
     const STOP_WAIT_MS = isIOS ? 4000 : 1500; // iPhone can send the words only after stop
 
-    // The phone's own English (e.g. en-IN). iPhone recognition only returns
-    // words reliably in a language set up for dictation on the phone.
+    // The device's own English (e.g. en-AU), used only as a last resort: the
+    // English type chosen in the list matches how the person speaks, and the
+    // device language can differ (a real iPad set to en-AU heard nothing).
     const deviceEnglish = () =>
       ((navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''])
-        .find((l) => /^en(-|$)/i.test(l || ''))) || variant.value;
+        .find((l) => /^en(-|$)/i.test(l || ''))) || 'en-US';
+    const lastResortLang = () => {
+      const d = deviceEnglish();
+      return d.toLowerCase() !== variant.value.toLowerCase() ? d : (variant.value === 'en-US' ? 'en-GB' : 'en-US');
+    };
 
     // Settings to try, in order. On iPhone, if one returns no words the next
     // tap tries the next one, and the one that works is remembered.
     const PLANS = isIOS
       ? [
-          { lang: deviceEnglish, continuous: true, interim: true },
-          { lang: deviceEnglish, continuous: false, interim: false },
-          { lang: () => 'en-US', continuous: false, interim: false },
+          { lang: () => variant.value, continuous: true, interim: true },
+          { lang: () => variant.value, continuous: false, interim: false },
+          { lang: lastResortLang, continuous: false, interim: false },
         ]
       : [{ lang: () => variant.value, continuous: false, interim: true }];
-    let planIndex = Math.min(parseInt(load('eh-mic-plan') || '0', 10) || 0, PLANS.length - 1);
+    // 'eh-mic-plan2': a new key, so phones that saved a step from the older
+    // order start again from the chosen English.
+    let planIndex = Math.min(parseInt(load('eh-mic-plan2') || '0', 10) || 0, PLANS.length - 1);
     let plan = PLANS[planIndex];
     let usedLang = '';
     let events = [];
@@ -543,7 +551,8 @@
       (usedLang || 'default') + ', ' + (plan.continuous ? 'continuous' : 'single') + ': ' + events.join(' → ') + ')';
 
     const showSpeech = () => {
-      let spoken = spokenText.trim();
+      // Speech often gives "i" / "i'm" in lower case.
+      let spoken = spokenText.trim().replace(/\bi\b/g, 'I');
       // Speech comes back in lower case; start a new sentence with a capital.
       if (spoken && (!base.trim() || /[.!?]\s*$/.test(base))) spoken = spoken[0].toUpperCase() + spoken.slice(1);
       const sep = base && spoken && !/\s$/.test(base) ? ' ' : '';
@@ -593,13 +602,13 @@
       } else if (isIOS && planIndex < PLANS.length - 1) {
         planIndex++;
         plan = PLANS[planIndex];
-        save('eh-mic-plan', String(planIndex));
+        save('eh-mic-plan2', String(planIndex));
         micMessage('err', 'The microphone heard you, but no words came back. I’ve switched to a different voice setting that works on more iPhones. Tap 🎤 Speak and try again (try ' +
           (planIndex + 1) + ' of ' + PLANS.length + ').' + info);
       } else if (isIOS) {
         planIndex = 0;
         plan = PLANS[0];
-        save('eh-mic-plan', '0');
+        save('eh-mic-plan2', '0');
         micMessage('err', 'Your iPhone’s voice service isn’t returning words to Safari. Please use the keyboard instead: tap in the box, then tap the 🎤 at the bottom of the keyboard and speak. Also check Settings → General → Keyboard → Dictation Languages includes English.' + info);
       } else {
         micMessage('err', 'The microphone heard you, but no words came back. Try again, speaking a little slower and closer to the phone. ' + KEYBOARD_TIP + info);
@@ -672,7 +681,7 @@
           const text = joinResults(ev.results);
           if (text) {
             spokenText = text;
-            save('eh-mic-plan', String(planIndex)); // this setting works on this phone
+            save('eh-mic-plan2', String(planIndex)); // this setting works on this phone
           }
           showSpeech();
           // Keep listening while words keep coming; stop after a pause.
@@ -757,7 +766,11 @@
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); check(); }
   });
   input.addEventListener('input', () => { updateCounter(); save('eh-draft', input.value); });
-  variant.addEventListener('change', () => save('eh-variant', variant.value));
+  variant.addEventListener('change', () => {
+    save('eh-variant', variant.value);
+    save('eh-mic-plan2', '0'); // new language: start the voice settings from the first one
+    window.dispatchEvent(new Event('eh-variant-change'));
+  });
 
   renderHistory();
 
