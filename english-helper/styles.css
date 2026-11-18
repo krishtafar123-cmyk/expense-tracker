@@ -268,3 +268,8 @@ footer { max-width: 860px; margin: 0 auto; padding: 0 16px 30px; color: var(--mu
 .tl-text { margin: 0; font-size: 1.08rem; line-height: 1.7; font-family: "Noto Sans Telugu", "Telugu Sangam MN", "Kohinoor Telugu", "Nirmala UI", "Gautami", system-ui, sans-serif; white-space: pre-wrap; }
 .telugu .status { margin: 0; }
 .telugu .note { margin: 0; }
+
+/* Voice input messages */
+.mic-status { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; font-size: .92rem; }
+.mic-status.info { background: var(--accent-soft); color: var(--text); }
+.mic-status.err { background: var(--wrong-soft); color: var(--wrong); }

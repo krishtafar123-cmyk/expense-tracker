@@ -359,39 +359,116 @@
   // Speak instead of typing (free, built into Chrome, Edge, Safari and Android).
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const micBtn = $('mic');
+  const micStatus = $('mic-status');
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isInstalledApp = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  const KEYBOARD_TIP = 'You can also tap the 🎤 on your phone’s keyboard and speak into the box.';
+
+  function micMessage(kind, text) {
+    if (!text) { micStatus.hidden = true; micStatus.textContent = ''; return; }
+    micStatus.className = 'mic-status ' + kind;
+    micStatus.textContent = text;
+    micStatus.hidden = false;
+  }
+
   if (SR) {
     micBtn.hidden = false;
     let rec = null;
-    const stop = () => {
+    let base = '';      // what was in the box before speaking
+    let heard = '';     // finished words from this session
+    let lastInterim = ''; // words still being recognised (kept if the phone never finalises them)
+    let errored = false;
+
+    const showSpeech = (interim) => {
+      let spoken = (heard + (interim ? ' ' + interim : '')).trim();
+      // Speech comes back in lower case; start a new sentence with a capital.
+      if (spoken && (!base.trim() || /[.!?]\s*$/.test(base))) spoken = spoken[0].toUpperCase() + spoken.slice(1);
+      const sep = base && spoken && !/\s$/.test(base) ? ' ' : '';
+      input.value = base + sep + spoken;
+      updateCounter();
+    };
+
+    const finish = () => {
       micBtn.classList.remove('listening');
       micBtn.setAttribute('aria-pressed', 'false');
       micBtn.querySelector('span').textContent = 'Speak';
+      // Some phones never send a final result when you tap stop: keep what was shown.
+      if (lastInterim) heard = (heard + ' ' + lastInterim).trim();
+      lastInterim = '';
+      showSpeech('');
+      save('eh-draft', input.value);
+      if (!errored) {
+        if (heard.trim()) micMessage('', '');
+        else micMessage('err', 'I didn’t catch anything. Tap Speak and start talking straight away, a little closer to the phone.');
+      }
       rec = null;
     };
+
+    const ERRORS = {
+      'no-speech': 'I didn’t hear anything. Tap Speak and start talking straight away.',
+      'audio-capture': 'No microphone was found, or another app is using it. Close other apps using the microphone and try again.',
+      'network': 'Voice input needs an internet connection. Check you’re online and try again.',
+      'language-not-supported': 'Voice input doesn’t support this English type on your phone. Try “American English” in the list and speak again.',
+      'aborted': '',
+    };
+
     micBtn.addEventListener('click', () => {
       if (rec) { rec.stop(); return; }
-      rec = new SR();
-      rec.lang = variant.value;
-      rec.interimResults = false;
-      rec.continuous = false;
-      rec.onresult = (ev) => {
-        const said = Array.from(ev.results).map((r) => r[0].transcript).join(' ').trim();
-        if (!said) return;
-        const sep = input.value && !/\s$/.test(input.value) ? ' ' : '';
-        input.value += sep + said;
-        updateCounter();
-        save('eh-draft', input.value);
-      };
-      rec.onerror = (ev) => {
-        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-          showStatus('err', 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.');
-        }
-      };
-      rec.onend = stop;
-      micBtn.classList.add('listening');
-      micBtn.setAttribute('aria-pressed', 'true');
-      micBtn.querySelector('span').textContent = 'Listening… tap to stop';
-      rec.start();
+      if ('speechSynthesis' in window) speechSynthesis.cancel(); // don't listen to our own voice
+      base = input.value;
+      heard = '';
+      lastInterim = '';
+      errored = false;
+      try {
+        rec = new SR();
+        rec.lang = variant.value;
+        rec.interimResults = true;   // show words as they are spoken
+        rec.continuous = false;      // stop after a pause (continuous repeats words on Android)
+        rec.maxAlternatives = 1;
+        rec.onresult = (ev) => {
+          let interim = '';
+          heard = '';
+          for (let i = 0; i < ev.results.length; i++) {
+            const t = ev.results[i][0].transcript;
+            if (ev.results[i].isFinal) heard += (heard ? ' ' : '') + t.trim();
+            else interim += t;
+          }
+          lastInterim = interim.trim();
+          showSpeech(lastInterim);
+        };
+        rec.onerror = (ev) => {
+          errored = true;
+          let msg = ERRORS[ev.error];
+          if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+            if (isIOS && isInstalledApp) {
+              msg = 'On iPhone, voice input doesn’t work inside the installed app. Open the site in Safari to use Speak. ' + KEYBOARD_TIP;
+            } else if (isIOS) {
+              msg = 'Voice input is turned off. On iPhone, turn on Settings → General → Keyboard → Enable Dictation, and allow the microphone for Safari. ' + KEYBOARD_TIP;
+            } else {
+              msg = 'Microphone access is blocked. Tap the lock icon next to the web address, allow the microphone, then try again. ' + KEYBOARD_TIP;
+            }
+          }
+          if (msg === undefined) msg = 'Voice input stopped unexpectedly (' + ev.error + '). Please try again. ' + KEYBOARD_TIP;
+          if (msg) micMessage('err', msg); else errored = false;
+        };
+        rec.onend = finish;
+        rec.start();
+        micBtn.classList.add('listening');
+        micBtn.setAttribute('aria-pressed', 'true');
+        micBtn.querySelector('span').textContent = 'Listening… tap to stop';
+        micMessage('info', '🎙️ Listening… speak now. It stops by itself when you pause.');
+      } catch (err) {
+        rec = null;
+        micMessage('err', 'Couldn’t start voice input. Please try again. ' + KEYBOARD_TIP);
+      }
+    });
+  } else {
+    // No voice input in this browser (for example Firefox): explain instead of hiding silently.
+    micBtn.hidden = false;
+    micBtn.addEventListener('click', () => {
+      micMessage('err', 'This browser doesn’t support voice input. Use Chrome on Android or Safari on iPhone. ' + KEYBOARD_TIP);
     });
   }
 
