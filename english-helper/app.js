@@ -168,6 +168,11 @@
     counter.classList.toggle('over', n > MAX_CHARS);
   }
 
+  // LanguageTool has no Indian English. Indian English follows British
+  // spelling, so check it as en-GB (speech still uses en-IN for the accent).
+  const CHECKER_LANG = { 'en-IN': 'en-GB' };
+  const checkerLanguage = () => CHECKER_LANG[variant.value] || variant.value;
+
   // Keep only mistakes that don't overlap an earlier one, so corrections can
   // be applied in a single left-to-right pass.
   function nonOverlapping(matches) {
@@ -259,7 +264,7 @@
     hideResults();
 
     try {
-      const body = new URLSearchParams({ text, language: variant.value });
+      const body = new URLSearchParams({ text, language: checkerLanguage() });
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },

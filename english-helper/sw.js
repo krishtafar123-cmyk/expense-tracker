@@ -1,6 +1,6 @@
 // Offline support. Bump VERSION whenever any file below changes, so phones
 // pick up the new version.
-const VERSION = 'eh-v8';
+const VERSION = 'eh-v9';
 const FILES = [
   './', 'index.html', 'learn.html', 'styles.css', 'app.js', 'learn.js', 'learn-data.js',
   'pwa.js', 'explain.js', 'translate.js', 'vendor/compromise.min.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
