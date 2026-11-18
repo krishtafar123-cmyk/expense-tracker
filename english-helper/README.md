@@ -6,11 +6,21 @@ A free website for checking your English. Type or speak a sentence, and you get:
 - your original text with the **mistakes marked**
 - a **short reason for each change**, with other suggestions and a "Keep mine" button
 
+When a sentence is correct, or after it has been corrected, tap **💡 Explain it** to see:
+
+- what kind of sentence it is (statement, question, negative, command)
+- its tense, with a link to that lesson
+- each word's job, colour-coded (subject, main verb, helping verb, noun, describing word…)
+- the rules that make it correct, such as "After did, the main verb stays in its base form"
+
+The explanation runs in your browser with the free [compromise](https://github.com/spencermountain/compromise) library (MIT licence, saved in `vendor/`), so it costs nothing and works offline once the app has been opened.
+
 It also has a **Learn** section: all 12 tenses, how to ask questions correctly, everyday vocabulary, and the most common mistakes. Each lesson has a "Try it" button that sends an example to the checker.
 
 ## Cost: free
 
 - **Grammar checking:** the free public [LanguageTool](https://languagetool.org) API. No account or key needed. It allows about 20 checks a minute per person.
+- **Explain it:** runs in your browser, with no service to pay for.
 - **Speak and Listen:** built into the browser (Chrome, Edge, Safari, Android), so they cost nothing.
 - **Hosting:** Vercel's free plan.
 
@@ -45,6 +55,8 @@ Open `index.html` in a browser. The microphone needs the site to be served over 
 |---|---|
 | `index.html`, `app.js` | The checker page |
 | `learn.html`, `learn.js` | The Learn page |
+| `explain.js` | The “Explain it” feature: sentence type, tense, word roles and rules |
+| `vendor/compromise.min.js` | Free English grammar library used by Explain it (MIT licence) |
 | `learn-data.js` | All lesson content. Add tenses, words or mistakes here |
 | `styles.css` | Look and feel (light and dark mode) |
 | `manifest.json`, `sw.js`, `pwa.js`, icons | Make it installable and let it work offline |
