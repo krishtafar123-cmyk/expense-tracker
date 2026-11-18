@@ -1,0 +1,319 @@
+// English Helper: checker page.
+// Uses the free public LanguageTool API (no key needed). Limits on the free
+// service: about 20 requests per minute per person and 20 KB per request.
+(function () {
+  const API_URL = 'https://api.languagetool.org/v2/check';
+  const MAX_CHARS = 5000;
+
+  const $ = (id) => document.getElementById(id);
+  const input = $('input');
+  const variant = $('variant');
+  const counter = $('counter');
+  const checkBtn = $('check');
+  const statusEl = $('status');
+  const correctedCard = $('corrected-card');
+  const originalCard = $('original-card');
+  const mistakesCard = $('mistakes-card');
+  const correctedEl = $('corrected');
+  const originalEl = $('original');
+  const mistakesEl = $('mistakes');
+
+  // Current result: the text that was checked, the mistakes found, and which
+  // suggestion is chosen for each (-1 = keep the original wording).
+  let state = null;
+
+  const TYPE_LABELS = {
+    misspelling: 'Spelling',
+    grammar: 'Grammar',
+    typographical: 'Punctuation',
+    whitespace: 'Spacing',
+    style: 'Style',
+    uncategorized: 'Grammar',
+    duplication: 'Repeated word',
+    inconsistency: 'Consistency',
+    register: 'Formality',
+    'locale-violation': 'Spelling (region)',
+    terminology: 'Word choice',
+    mistranslation: 'Word choice',
+    omission: 'Missing word',
+    addition: 'Extra word',
+  };
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function save(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ } }
+  function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function showStatus(kind, html) {
+    statusEl.className = 'status ' + kind;
+    statusEl.innerHTML = html;
+    statusEl.hidden = false;
+  }
+  function hideResults() {
+    statusEl.hidden = true;
+    correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = true;
+  }
+
+  function updateCounter() {
+    const n = input.value.length;
+    counter.textContent = n + ' / ' + MAX_CHARS;
+    counter.classList.toggle('over', n > MAX_CHARS);
+  }
+
+  // Keep only mistakes that don't overlap an earlier one, so corrections can
+  // be applied in a single left-to-right pass.
+  function nonOverlapping(matches) {
+    const sorted = matches.slice().sort((a, b) => a.offset - b.offset);
+    const kept = [];
+    let end = -1;
+    for (const m of sorted) {
+      if (m.offset >= end) { kept.push(m); end = m.offset + m.length; }
+    }
+    return kept;
+  }
+
+  // Walk the text once, calling piece(plain) for unchanged text and
+  // fix(match, index) for each mistake.
+  function walk(text, matches, plain, fix) {
+    let pos = 0;
+    const out = [];
+    matches.forEach((m, i) => {
+      out.push(plain(text.slice(pos, m.offset)));
+      out.push(fix(m, i));
+      pos = m.offset + m.length;
+    });
+    out.push(plain(text.slice(pos)));
+    return out.join('');
+  }
+
+  function chosenText(i) {
+    const m = state.matches[i];
+    const c = state.choice[i];
+    return c >= 0 ? m.replacements[c].value : state.text.substr(m.offset, m.length);
+  }
+
+  function correctedPlain() {
+    return walk(state.text, state.matches, (s) => s, (m, i) => chosenText(i));
+  }
+
+  function render() {
+    const { text, matches } = state;
+
+    correctedEl.innerHTML = walk(text, matches, escapeHtml, (m, i) =>
+      state.choice[i] >= 0 ? '<ins>' + escapeHtml(chosenText(i)) + '</ins>' : escapeHtml(chosenText(i))
+    );
+
+    originalEl.innerHTML = walk(text, matches, escapeHtml, (m, i) => {
+      const wrong = text.substr(m.offset, m.length);
+      return '<mark data-i="' + i + '"' + (wrong.trim() ? '' : ' class="empty"') +
+        ' title="' + escapeHtml(m.message) + '">' + escapeHtml(wrong) + '</mark>';
+    });
+
+    mistakesEl.innerHTML = matches.map((m, i) => {
+      const wrong = text.substr(m.offset, m.length);
+      const c = state.choice[i];
+      const type = TYPE_LABELS[m.rule && m.rule.issueType] || (m.rule && m.rule.category && m.rule.category.name) || 'Tip';
+      const fixed = c >= 0 ? m.replacements[c].value : null;
+      const change = fixed !== null
+        ? '<span class="from">' + escapeHtml(wrong.trim() ? wrong : '(space)') + '</span> → <span class="to">' +
+          escapeHtml(fixed === '' ? '(remove)' : fixed) + '</span>'
+        : '<span>' + escapeHtml(wrong) + '</span>';
+      const alts = m.replacements.slice(0, 5).map((r, j) =>
+        '<button type="button" class="btn-small alt" data-i="' + i + '" data-j="' + j + '" aria-pressed="' + (c === j) + '">' +
+        escapeHtml(r.value === '' ? '(remove)' : r.value) + '</button>'
+      ).join('');
+      const keep = m.replacements.length
+        ? '<button type="button" class="btn-small btn-ghost alt" data-i="' + i + '" data-j="-1" aria-pressed="' + (c === -1) + '">Keep mine</button>'
+        : '';
+      return '<li class="mistake' + (c === -1 && m.replacements.length ? ' ignored' : '') + '" id="m' + i + '">' +
+        '<span class="tag">' + escapeHtml(type) + '</span>' +
+        '<div class="change">' + change + '</div>' +
+        '<p class="why">' + escapeHtml(m.message) + '</p>' +
+        (alts || keep ? '<div class="alts">' + alts + keep + '</div>' : '') +
+        '</li>';
+    }).join('');
+
+    $('mistakes-title').textContent = matches.length === 1
+      ? '1 thing to fix, and why'
+      : matches.length + ' things to fix, and why';
+  }
+
+  async function check() {
+    const text = input.value;
+    if (!text.trim()) { input.focus(); return; }
+    if (text.length > MAX_CHARS) {
+      showStatus('err', 'That’s a bit long. Please check up to ' + MAX_CHARS + ' characters at a time.');
+      return;
+    }
+
+    checkBtn.disabled = true;
+    checkBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Checking…';
+    hideResults();
+
+    try {
+      const body = new URLSearchParams({ text, language: variant.value });
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body,
+      });
+      if (res.status === 429) throw new Error('rate');
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json();
+
+      const matches = nonOverlapping(data.matches || []);
+      state = {
+        text,
+        matches,
+        choice: matches.map((m) => (m.replacements && m.replacements.length ? 0 : -1)),
+      };
+
+      if (!matches.length) {
+        showStatus('ok', '✓ Looks good! No mistakes found.');
+        correctedCard.hidden = false;
+        correctedEl.textContent = text;
+        return;
+      }
+      render();
+      correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = false;
+      correctedCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      if (err.message === 'rate') {
+        showStatus('err', 'Too many checks in a short time. The free service allows about 20 a minute, so please wait a moment and try again.');
+      } else if (!navigator.onLine) {
+        showStatus('err', 'You seem to be offline. Connect to the internet and try again.');
+      } else {
+        showStatus('err', 'Couldn’t check right now. Please try again in a moment.');
+      }
+    } finally {
+      checkBtn.disabled = false;
+      checkBtn.textContent = 'Check my English';
+    }
+  }
+
+  // Choosing a different suggestion, or keeping the original.
+  mistakesEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.alt');
+    if (!btn || !state) return;
+    state.choice[+btn.dataset.i] = +btn.dataset.j;
+    render();
+  });
+
+  // Tapping a marked mistake jumps to its explanation.
+  originalEl.addEventListener('click', (e) => {
+    const mark = e.target.closest('mark');
+    if (!mark) return;
+    const card = $('m' + mark.dataset.i);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+  });
+
+  $('copy').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const text = state && state.matches.length ? correctedPlain() : correctedEl.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Copied ✓';
+    } catch (err) {
+      btn.textContent = 'Copy failed';
+    }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  });
+
+  $('use').addEventListener('click', () => {
+    input.value = state && state.matches.length ? correctedPlain() : correctedEl.textContent;
+    updateCounter();
+    save('eh-draft', input.value);
+    hideResults();
+    input.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Read the corrected version aloud (free, built into the browser).
+  const listenBtn = $('listen');
+  if ('speechSynthesis' in window) {
+    listenBtn.addEventListener('click', () => {
+      speechSynthesis.cancel();
+      const text = state && state.matches.length ? correctedPlain() : correctedEl.textContent;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = variant.value;
+      u.rate = 0.95;
+      speechSynthesis.speak(u);
+    });
+  } else {
+    listenBtn.hidden = true;
+  }
+
+  // Speak instead of typing (free, built into Chrome, Edge, Safari and Android).
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = $('mic');
+  if (SR) {
+    micBtn.hidden = false;
+    let rec = null;
+    const stop = () => {
+      micBtn.classList.remove('listening');
+      micBtn.setAttribute('aria-pressed', 'false');
+      micBtn.querySelector('span').textContent = 'Speak';
+      rec = null;
+    };
+    micBtn.addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = variant.value;
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.onresult = (ev) => {
+        const said = Array.from(ev.results).map((r) => r[0].transcript).join(' ').trim();
+        if (!said) return;
+        const sep = input.value && !/\s$/.test(input.value) ? ' ' : '';
+        input.value += sep + said;
+        updateCounter();
+        save('eh-draft', input.value);
+      };
+      rec.onerror = (ev) => {
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+          showStatus('err', 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.');
+        }
+      };
+      rec.onend = stop;
+      micBtn.classList.add('listening');
+      micBtn.setAttribute('aria-pressed', 'true');
+      micBtn.querySelector('span').textContent = 'Listening… tap to stop';
+      rec.start();
+    });
+  }
+
+  $('clear').addEventListener('click', () => {
+    input.value = '';
+    updateCounter();
+    save('eh-draft', '');
+    hideResults();
+    state = null;
+    input.focus();
+  });
+
+  checkBtn.addEventListener('click', check);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); check(); }
+  });
+  input.addEventListener('input', () => { updateCounter(); save('eh-draft', input.value); });
+  variant.addEventListener('change', () => save('eh-variant', variant.value));
+
+  // Start-up: a sentence sent from the Learn page wins over the saved draft.
+  const savedVariant = load('eh-variant');
+  if (savedVariant && variant.querySelector('option[value="' + savedVariant + '"]')) variant.value = savedVariant;
+  const fromLink = new URLSearchParams(location.search).get('text');
+  if (fromLink) {
+    input.value = fromLink;
+    history.replaceState(null, '', location.pathname);
+    updateCounter();
+    check();
+  } else {
+    input.value = load('eh-draft') || '';
+    updateCounter();
+  }
+})();
