@@ -15,11 +15,14 @@ When a sentence is correct, or after it has been corrected, tap **💡 Explain i
 
 The explanation runs in your browser with the free [compromise](https://github.com/spencermountain/compromise) library (MIT licence, saved in `vendor/`), so it costs nothing and works offline once the app has been opened.
 
+Tap **అ Show in Telugu** to see your sentence and the corrected version translated into Telugu, so you can check the correction still means what you wanted to say. The choice is remembered, so Telugu keeps showing on later checks until you tap **Hide Telugu**. Translations come from the free [MyMemory](https://mymemory.translated.net) service: no key needed, about 5,000 characters a day per person.
+
 It also has a **Learn** section: all 12 tenses, how to ask questions correctly, everyday vocabulary, and the most common mistakes. Each lesson has a "Try it" button that sends an example to the checker.
 
 ## Cost: free
 
 - **Grammar checking:** the free public [LanguageTool](https://languagetool.org) API. No account or key needed. It allows about 20 checks a minute per person.
+- **Telugu translation:** the free MyMemory API, no key needed (about 5,000 characters a day per person).
 - **Explain it:** runs in your browser, with no service to pay for.
 - **Speak and Listen:** built into the browser (Chrome, Edge, Safari, Android), so they cost nothing.
 - **Hosting:** Vercel's free plan.
@@ -57,6 +60,7 @@ Open `index.html` in a browser. The microphone needs the site to be served over 
 | `learn.html`, `learn.js` | The Learn page |
 | `explain.js` | The “Explain it” feature: sentence type, tense, word roles and rules |
 | `vendor/compromise.min.js` | Free English grammar library used by Explain it (MIT licence) |
+| `translate.js` | Telugu translation through the free MyMemory API |
 | `learn-data.js` | All lesson content. Add tenses, words or mistakes here |
 | `styles.css` | Look and feel (light and dark mode) |
 | `manifest.json`, `sw.js`, `pwa.js`, icons | Make it installable and let it work offline |

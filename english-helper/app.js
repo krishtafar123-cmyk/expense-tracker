@@ -57,7 +57,69 @@
     statusEl.hidden = true;
     correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = true;
     hideExplain();
+    hideTelugu();
   }
+
+  // ----- Telugu translation of the input and the corrected version -----
+  const teluguBtn = $('telugu-btn');
+  const teluguBox = $('telugu');
+  let teluguOn = load('eh-telugu') === '1'; // remembered, so it stays on for later checks
+  let teluguRun = 0; // ignore answers from an older request
+
+  function setTeluguBtn() {
+    teluguBtn.textContent = teluguOn ? 'Hide Telugu' : 'అ Show in Telugu';
+    teluguBtn.setAttribute('aria-pressed', String(teluguOn));
+  }
+
+  function hideTelugu() {
+    teluguRun++;
+    teluguBox.hidden = true;
+    teluguBox.innerHTML = '';
+  }
+
+  const teluguItem = (label, sub, text) =>
+    '<div class="tl-item"><p class="tl-label">' + escapeHtml(label) + ' <span lang="te">' + escapeHtml(sub) + '</span></p>' +
+    '<p class="tl-text" lang="te">' + escapeHtml(text) + '</p></div>';
+
+  async function showTelugu() {
+    if (!state) return;
+    const run = ++teluguRun;
+    const original = state.text;
+    const corrected = currentGoodText();
+    const same = original.trim() === corrected.trim();
+    teluguBox.hidden = false;
+    teluguBox.innerHTML = '<p class="note"><span class="spinner" aria-hidden="true"></span> Translating into Telugu…</p>';
+    try {
+      const [mine, fixed] = await Promise.all([
+        window.Translate.toTelugu(original),
+        same ? Promise.resolve(null) : window.Translate.toTelugu(corrected),
+      ]);
+      if (run !== teluguRun) return;
+      teluguBox.innerHTML =
+        (same
+          ? teluguItem('Your sentence in Telugu', '(మీ వాక్యం)', mine)
+          : teluguItem('What you wrote, in Telugu', '(మీరు రాసింది)', mine) +
+            teluguItem('Corrected version, in Telugu', '(సరిచేసిన వాక్యం)', fixed)) +
+        '<p class="note">Machine translation, so it shows the meaning but may not be word-perfect.' +
+        (same ? '' : ' If the two mean different things, the correction changed your meaning, so check it’s what you wanted to say.') + '</p>';
+    } catch (err) {
+      if (run !== teluguRun) return;
+      const msg = err.code === 'quota'
+        ? 'Today’s free translation limit has been used up. It resets tomorrow, and checking still works as normal.'
+        : !navigator.onLine
+          ? 'You seem to be offline. Connect to the internet to see the Telugu translation.'
+          : 'Couldn’t translate right now. Please try again in a moment.';
+      teluguBox.innerHTML = '<p class="status err">' + escapeHtml(msg) + '</p>';
+    }
+  }
+
+  teluguBtn.addEventListener('click', () => {
+    teluguOn = !teluguOn;
+    save('eh-telugu', teluguOn ? '1' : '0');
+    setTeluguBtn();
+    if (teluguOn) showTelugu(); else hideTelugu();
+  });
+  setTeluguBtn();
 
   // ----- "Explain it": how the (correct or corrected) sentence works -----
   const explainBtn = $('explain-btn');
@@ -218,10 +280,12 @@
         showStatus('ok', '✓ Looks good! No mistakes found. Tap “Explain it” to see why it’s correct.');
         correctedCard.hidden = false;
         correctedEl.textContent = text;
+        if (teluguOn) showTelugu();
         return;
       }
       render();
       correctedCard.hidden = originalCard.hidden = mistakesCard.hidden = false;
+      if (teluguOn) showTelugu();
       correctedCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       if (err.message === 'rate') {
@@ -244,6 +308,7 @@
     state.choice[+btn.dataset.i] = +btn.dataset.j;
     render();
     hideExplain();
+    if (teluguOn) showTelugu();
   });
 
   // Tapping a marked mistake jumps to its explanation.
