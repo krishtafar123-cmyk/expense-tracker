@@ -273,3 +273,5 @@ footer { max-width: 860px; margin: 0 auto; padding: 0 16px 30px; color: var(--mu
 .mic-status { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; font-size: .92rem; }
 .mic-status.info { background: var(--accent-soft); color: var(--text); }
 .mic-status.err { background: var(--wrong-soft); color: var(--wrong); }
+.mic-status { overflow-wrap: anywhere; }
+.mic-action { margin-top: 8px; }
