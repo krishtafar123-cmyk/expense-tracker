@@ -1823,6 +1823,8 @@ function renderIouList() {
     const last = debtPayments
       .filter((p) => p.debt_id === d.id)
       .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    const paymentCount = debtPayments.filter((p) => p.debt_id === d.id).length;
+    const historyOpen = paymentCount > 0 && iouHistoryOpen.has(d.id);
 
     // Progress only appears once something has been paid — an untouched debt
     // is a plain row, and a bar sitting at 0% is just noise.
@@ -1830,6 +1832,9 @@ function renderIouList() {
       ? `<div class="debt-progress">
            <div class="budget-track" aria-hidden="true"><div class="budget-fill ${cleared ? "is-done" : ""}" style="width:${pct}%"></div></div>
            <span class="item-sub">${fmt(paid)} of ${fmt(total)} paid${cleared ? "" : " · " + fmt(left) + " left"}${last ? " · last " + new Date(last.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : ""}</span>
+           <button type="button" class="link-btn payment-history-toggle" aria-expanded="${historyOpen}" aria-controls="history-${d.id}">
+             ${historyOpen ? "Hide payments" : "Payment history (" + paymentCount + ")"}
+           </button>
          </div>`
       : "";
 
@@ -1852,6 +1857,21 @@ function renderIouList() {
     li.querySelector(".settle-btn").addEventListener("click", () =>
       cleared ? undoLastPayment(d) : openPaymentForm(li, d));
     li.querySelector(".delete-btn").addEventListener("click", () => deleteIou(d.id));
+    const historyToggle = li.querySelector(".payment-history-toggle");
+    if (historyToggle) {
+      historyToggle.addEventListener("click", () => {
+        if (iouHistoryOpen.has(d.id)) iouHistoryOpen.delete(d.id);
+        else iouHistoryOpen.add(d.id);
+        renderIouList();
+        const again = document.querySelector(`[aria-controls="history-${d.id}"]`);
+        if (again) again.focus();
+        // The list scrolls inside a 320px box, so a history opened near the
+        // bottom would otherwise land out of sight below the fold.
+        const opened = document.getElementById("history-" + d.id);
+        if (opened) opened.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    }
+    if (historyOpen) li.appendChild(paymentHistory(d));
     attachEdit(li, d, [
       { key: "date", type: "date", required: true },
       { key: "person", type: "text", required: true },
@@ -1860,6 +1880,77 @@ function renderIouList() {
     ], "personal_debts", renderAfterIouChange);
     ul.appendChild(li);
   }
+}
+
+// ---------- Payment history ----------
+// Every payment towards one debt, newest first, each with what was left
+// owing straight after it. The progress line only ever showed the total and
+// the last date, and the only way to fix a wrong payment was ↺, which can
+// only remove the most recent one. Here any payment can go.
+//
+// Divs with list roles rather than <ul>/<li>: `.item-list li` styles every
+// descendant li as a three-column data row, and this sits inside one.
+const iouHistoryOpen = new Set(); // debt ids whose history is expanded
+
+function paymentHistory(debt) {
+  const total = Number(debt.amount);
+  // Oldest first to build the running balance, then flipped for display.
+  const mine = debtPayments
+    .filter((p) => p.debt_id === debt.id)
+    .sort((a, b) => (a.date < b.date ? -1 : (a.date > b.date ? 1 : (a.created_at < b.created_at ? -1 : 1))));
+  let paidSoFar = 0;
+  const rows = mine.map((p) => {
+    paidSoFar += Number(p.amount);
+    return { p, leftAfter: Math.max(0, total - paidSoFar) };
+  }).reverse();
+
+  const wrap = document.createElement("div");
+  wrap.className = "payment-history";
+  wrap.id = "history-" + debt.id;
+  wrap.setAttribute("role", "list");
+  wrap.setAttribute("aria-label", "Payments to " + debt.person);
+
+  for (const { p, leftAfter } of rows) {
+    const dateLabel = new Date(p.date + "T00:00:00")
+      .toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    const row = document.createElement("div");
+    row.className = "payment-row";
+    row.setAttribute("role", "listitem");
+    row.innerHTML = `
+      <div class="payment-main">
+        <span class="payment-date">${dateLabel}</span>
+        <span class="payment-left">${leftAfter > 0 ? fmt(leftAfter) + " left after" : "Paid off"}</span>
+      </div>
+      <span class="payment-amt">${fmt(p.amount)}</span>
+      <button type="button" class="delete-btn" aria-label="${escapeAttr("Delete the " + fmt(p.amount) + " payment on " + dateLabel)}" title="Delete this payment">✕</button>
+    `;
+    row.querySelector(".delete-btn").addEventListener("click", () => deleteDebtPayment(p, debt));
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+async function deleteDebtPayment(payment, debt) {
+  const { error } = await sb.from("debt_payments").delete().eq("id", payment.id);
+  if (error) { console.error(error); toast("Couldn't delete that payment"); return; }
+  debtPayments = debtPayments.filter((p) => p.id !== payment.id);
+  renderAfterIouChange();
+
+  const when = new Date(payment.date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  // A mis-tap on ✕ shouldn't cost a payment you then have to re-type, so the
+  // toast offers to put it back with its original date and amount.
+  toast(`Deleted ${fmt(payment.amount)} paid ${when} — ${fmt(debtRemaining(debt))} owed`, {
+    label: "Undo",
+    onClick: async () => {
+      const { data, error: err } = await sb.from("debt_payments")
+        .insert({ user_id: currentUser.id, debt_id: payment.debt_id, date: payment.date, amount: payment.amount })
+        .select().single();
+      if (err) { console.error(err); toast("Couldn't restore that payment"); return; }
+      debtPayments.unshift(data);
+      renderAfterIouChange();
+      toast("Payment restored");
+    },
+  });
 }
 
 // Editing an amount moves what Remaining subtracts, so the summary has to be
