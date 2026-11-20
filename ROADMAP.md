@@ -30,6 +30,8 @@ Added since, on request:
 
 6. **Month calendar on Home** (2026-11-13) — a Mon-first grid of the viewed month in `#calendar-card`. Logged days show a teal wash and the day's total; days with nothing logged get a dashed orange edge and dot (same rule as the logging-gap insight: past days, plus today after `GAP_TODAY_COUNTS_AFTER_HOUR`). Unlike the insight it marks past months too and can't be dismissed. Tapping a day lists its expenses, and "Log an expense for this day" opens Spending with that date filled in. No migration — it reads `dailyExpenses`, and redraws from `renderSummary()`.
 
+7. **Payment history for Money I Owe** (2026-11-20) — "Payment history (n)" under a debt's progress bar expands every payment, newest first, with what was left after each. Any payment can be deleted (not just the latest, which is all ↺ could do), and the toast offers Undo, which re-inserts it with its original date and amount. Rendered as divs with list roles, because `.item-list li` would style nested `<li>`s as data rows. No migration.
+
 ### What receipts look like in the code
 
 - `migration_receipts.sql` adds `receipt_path` to `daily_expenses` and `reimbursements`, and creates the private `receipts` bucket **and its policies in SQL** — deliberately, so the user doesn't have to click through the Storage dashboard.
